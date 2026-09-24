@@ -1,0 +1,67 @@
+{
+    "homework": [
+        {
+            "subject": "中文",
+            "group": "S2E 中文",
+            "title": "閱讀測驗—(9月15日)",
+            "startDate": "2026-09-07",
+            "dueDate": "2026-09-15",
+            "submit": false,
+            "hours": null
+        },
+        {
+            "subject": "中文",
+            "group": "S2E 中文",
+            "title": "中文測驗—(9月22日)",
+            "startDate": "2026-09-07",
+            "dueDate": "2026-09-22",
+            "submit": false,
+            "hours": null
+        },
+        {
+            "subject": "中文",
+            "group": "S2E 中文",
+            "title": "勤讀獎",
+            "startDate": "2026-09-07",
+            "dueDate": "2027-06-05",
+            "submit": false,
+            "hours": null
+        },
+        {
+            "subject": "數學",
+            "group": "S2E 數學",
+            "title": "初二數學預習方法",
+            "startDate": "2026-08-30",
+            "dueDate": "2027-08-07",
+            "submit": true,
+            "hours": null
+        },
+        {
+            "subject": "數學",
+            "group": "S2E 數學",
+            "title": "初二代數第一段延伸練習",
+            "startDate": "2026-08-30",
+            "dueDate": "2027-07-06",
+            "submit": false,
+            "hours": null
+        },
+        {
+            "subject": "數學",
+            "group": "S2E 數學",
+            "title": "第一段數學參考答案",
+            "startDate": "2026-09-03",
+            "dueDate": "2026-11-20",
+            "submit": false,
+            "hours": null
+        },
+        {
+            "subject": "數學",
+            "group": "S2E 數學",
+            "title": "9月21日(一) 數學基力測",
+            "startDate": "2026-09-13",
+            "dueDate": "2026-09-21",
+            "submit": false,
+            "hours": null
+        }
+    ]
+}

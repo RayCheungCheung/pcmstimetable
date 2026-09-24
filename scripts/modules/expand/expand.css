@@ -1,0 +1,40 @@
+.class-card.expanded {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.class-card.expanded .info {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.expand-content {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1.5px solid rgba(0,0,0,0.1);
+    animation: expandFadeIn 0.3s ease;
+    width: 100%;
+}
+
+@keyframes expandFadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.expand-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 14px;
+}
+
+.expand-label {
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.expand-value {
+    color: var(--text-dark);
+    font-weight: 700;
+}

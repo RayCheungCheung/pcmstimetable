@@ -1,0 +1,1092 @@
+{
+    "S2A":  {
+                "className":  "初二信",
+                "homeroomTeacher":  "余靜雯",
+                "schedule":  {
+                                 "mon":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "留空課程",
+                                                 "teacher":  "余靜雯"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "周會",
+                                                 "teacher":  "余靜雯"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "品德公民",
+                                                 "teacher":  "余靜雯"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "分組數學",
+                                                 "teacher":  "劉天亮"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "余靜雯·周棨俊"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組藝術_視",
+                                                 "teacher":  "王桂芬·劉冠華"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組藝術_視",
+                                                 "teacher":  "王桂芬·劉冠華"
+                                             }
+                                         ],
+                                 "tue":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "地理",
+                                                 "teacher":  "周慧心"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "中文",
+                                                 "teacher":  "吳子勝"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "中文",
+                                                 "teacher":  "吳子勝"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "體育與健康",
+                                                 "teacher":  "容毅燊·蕭沛強"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "體育與健康",
+                                                 "teacher":  "容毅燊·蕭沛強"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "余靜雯·周棨俊"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "余靜雯·周棨俊"
+                                             }
+                                         ],
+                                 "wed":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "分組數學",
+                                                 "teacher":  "劉天亮"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "中文",
+                                                 "teacher":  "吳子勝"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "中文2",
+                                                 "teacher":  "鄭炳弟團·鄭炳弟團"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "分組數學AI",
+                                                 "teacher":  "鄭穎清"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "分組數學AI",
+                                                 "teacher":  "鄭穎清"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "品德公民",
+                                                 "teacher":  "張曉嵐"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "余靜雯·周棨俊"
+                                             }
+                                         ],
+                                 "thu":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "設計科學",
+                                                 "teacher":  "劉冠華·林達鑫"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "設計科學",
+                                                 "teacher":  "劉冠華·林達鑫"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "其他設科",
+                                                 "teacher":  "劉冠華·林達鑫"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "中文",
+                                                 "teacher":  "吳子勝"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "分組數學_幾",
+                                                 "teacher":  "劉天亮"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組資訊科技",
+                                                 "teacher":  "進階資訊"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "余靜雯·周棨俊"
+                                             }
+                                         ],
+                                 "fri":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "分組數學_幾",
+                                                 "teacher":  "劉天亮"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "中文",
+                                                 "teacher":  "吳子勝"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "地理知識",
+                                                 "teacher":  "周慧心"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "余靜雯·周棨俊"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "余靜雯·周棨俊"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組數學",
+                                                 "teacher":  "劉天亮"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "聖經",
+                                                 "teacher":  "毛劍賢"
+                                             }
+                                         ],
+                                 "sat":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "留空課程",
+                                                 "teacher":  "余靜雯"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "余靜雯·周棨俊"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "中文",
+                                                 "teacher":  "吳子勝"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "英語R+S",
+                                                 "teacher":  "梁詠詩·林曦瞳"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "地理",
+                                                 "teacher":  "周慧心"
+                                             }
+                                         ]
+                             }
+            },
+    "S2B":  {
+                "className":  "初二望",
+                "homeroomTeacher":  "劉家晴",
+                "schedule":  {
+                                 "mon":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "留空課程",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "周會",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "品德公民",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "分組數學",
+                                                 "teacher":  "進階數學"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "中文",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             }
+                                         ],
+                                 "tue":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "英語R+S",
+                                                 "teacher":  "梁詠詩·林曦瞳"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "分組資訊科技",
+                                                 "teacher":  "進階資訊"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "中文",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "中文",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "地理",
+                                                 "teacher":  "黃穎琳"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "品德公民",
+                                                 "teacher":  "曾思怡"
+                                             }
+                                         ],
+                                 "wed":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "分組數學",
+                                                 "teacher":  "進階數學"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "中文2",
+                                                 "teacher":  "鄭炳弟團·鄭炳弟團"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "中文",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "分組進階數學",
+                                                 "teacher":  "數學AI"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "分組進階數學",
+                                                 "teacher":  "數學AI"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組藝術_視",
+                                                 "teacher":  "進階藝術"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組藝術_視",
+                                                 "teacher":  "進階藝術"
+                                             }
+                                         ],
+                                 "thu":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "地理知識",
+                                                 "teacher":  "黃穎琳"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "中文",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "體育與健康",
+                                                 "teacher":  "容毅燊·張嘉俊"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "體育與健康",
+                                                 "teacher":  "容毅燊·張嘉俊"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "分組數學_幾",
+                                                 "teacher":  "進階數學"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "聖經",
+                                                 "teacher":  "毛劍賢"
+                                             }
+                                         ],
+                                 "fri":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "分組數學_幾",
+                                                 "teacher":  "進階數學"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "地理",
+                                                 "teacher":  "黃穎琳"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "中文",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組數學",
+                                                 "teacher":  "進階數學"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             }
+                                         ],
+                                 "sat":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "留空課程",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "設計科學",
+                                                 "teacher":  "黎誠軒·李武鴻"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "設計科學",
+                                                 "teacher":  "黎誠軒·李武鴻"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "其他設科",
+                                                 "teacher":  "黎誠軒·李武鴻"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             }
+                                         ]
+                             }
+            },
+    "S2C":  {
+                "className":  "初二愛",
+                "homeroomTeacher":  "吳惠梨",
+                "schedule":  {
+                                 "mon":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "留空課程",
+                                                 "teacher":  "吳惠梨"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "周會",
+                                                 "teacher":  "吳惠梨"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "品德公民",
+                                                 "teacher":  "吳惠梨"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "數學",
+                                                 "teacher":  "梁駿杰"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "中文",
+                                                 "teacher":  "吳惠梨"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "數學_幾",
+                                                 "teacher":  "梁駿杰"
+                                             }
+                                         ],
+                                 "tue":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "品德公民",
+                                                 "teacher":  "陳健鴻"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "體育與健康",
+                                                 "teacher":  "容毅燊·張永豪"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "體育與健康",
+                                                 "teacher":  "容毅燊·張永豪"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "中文",
+                                                 "teacher":  "吳惠梨"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "中文",
+                                                 "teacher":  "吳惠梨"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             }
+                                         ],
+                                 "wed":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "數學_幾",
+                                                 "teacher":  "梁駿杰"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "地理",
+                                                 "teacher":  "顧俐俐"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "聖經",
+                                                 "teacher":  "毛劍賢"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "中文",
+                                                 "teacher":  "吳惠梨"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "數學",
+                                                 "teacher":  "梁駿杰"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "中文",
+                                                 "teacher":  "吳惠梨"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             }
+                                         ],
+                                 "thu":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "分組資訊科技",
+                                                 "teacher":  "進階資訊"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "中文",
+                                                 "teacher":  "吳惠梨"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "地理知識",
+                                                 "teacher":  "顧俐俐"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "中文2",
+                                                 "teacher":  "鄭炳弟團·鄭炳弟團"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "數學",
+                                                 "teacher":  "梁駿杰"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "地理",
+                                                 "teacher":  "顧俐俐"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             }
+                                         ],
+                                 "fri":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "英語R+S",
+                                                 "teacher":  "梁詠詩·林曦瞳"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "數學AI",
+                                                 "teacher":  "黃燦霖"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "數學AI",
+                                                 "teacher":  "黃燦霖"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "藝術_視",
+                                                 "teacher":  "黃慧儀"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "藝術_視",
+                                                 "teacher":  "黃慧儀"
+                                             }
+                                         ],
+                                 "sat":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "留空課程",
+                                                 "teacher":  "吳惠梨"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "設計科學",
+                                                 "teacher":  "陳健鴻"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "設計科學",
+                                                 "teacher":  "陳健鴻"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "其他設科",
+                                                 "teacher":  "陳健鴻"
+                                             }
+                                         ]
+                             }
+            },
+    "S2D":  {
+                "className":  "初二善",
+                "homeroomTeacher":  "廖鳳儀",
+                "schedule":  {
+                                 "mon":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "留空課程",
+                                                 "teacher":  "廖鳳儀"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "周會",
+                                                 "teacher":  "廖鳳儀"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "品德公民",
+                                                 "teacher":  "廖鳳儀"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "數學",
+                                                 "teacher":  "廖鳳儀"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "中文2",
+                                                 "teacher":  "鄭炳弟團·鄭炳弟團"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             }
+                                         ],
+                                 "tue":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "中文",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "中文",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "地理",
+                                                 "teacher":  "顧俐俐"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "數學_幾",
+                                                 "teacher":  "譚鴻生"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "品德公民",
+                                                 "teacher":  "陳健鴻"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "數學",
+                                                 "teacher":  "廖鳳儀"
+                                             }
+                                         ],
+                                 "wed":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "中文",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "數學AI",
+                                                 "teacher":  "張匯民"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "數學AI",
+                                                 "teacher":  "張匯民"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "地理",
+                                                 "teacher":  "顧俐俐"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "英語R+S",
+                                                 "teacher":  "梁詠詩·林曦瞳"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "體育與健康",
+                                                 "teacher":  "容毅燊·陳詠琛"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "體育與健康",
+                                                 "teacher":  "容毅燊·陳詠琛"
+                                             }
+                                         ],
+                                 "thu":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "分組藝術_視",
+                                                 "teacher":  "進階藝術"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "分組藝術_視",
+                                                 "teacher":  "進階藝術"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "設計科學",
+                                                 "teacher":  "何城坤·盧永強"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "設計科學",
+                                                 "teacher":  "何城坤·盧永強"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "其他設科",
+                                                 "teacher":  "何城坤·李武鴻"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "中文",
+                                                 "teacher":  "劉家晴"
+                                             }
+                                         ],
+                                 "fri":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "聖經",
+                                                 "teacher":  "毛劍賢"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "地理知識",
+                                                 "teacher":  "顧俐俐"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "數學",
+                                                 "teacher":  "廖鳳儀"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "中文",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             }
+                                         ],
+                                 "sat":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "留空課程",
+                                                 "teacher":  "廖鳳儀"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "分組資訊科技",
+                                                 "teacher":  "進階資訊"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "中文",
+                                                 "teacher":  "劉家晴"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "數學_幾",
+                                                 "teacher":  "譚鴻生"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             }
+                                         ]
+                             }
+            },
+    "S2F":  {
+                "className":  "初二光",
+                "homeroomTeacher":  "蔡桂枝",
+                "schedule":  {
+                                 "mon":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "留空課程",
+                                                 "teacher":  "蔡桂枝"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "周會",
+                                                 "teacher":  "蔡桂枝"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "品德公民",
+                                                 "teacher":  "蔡桂枝"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "品德公民",
+                                                 "teacher":  "吳倩澄"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "數學",
+                                                 "teacher":  "梁駿杰"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             }
+                                         ],
+                                 "tue":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "中文",
+                                                 "teacher":  "蔡桂枝"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "中文",
+                                                 "teacher":  "蔡桂枝"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "數學AI",
+                                                 "teacher":  "張匯民"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "數學AI",
+                                                 "teacher":  "張匯民"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "體育與健康",
+                                                 "teacher":  "徐梓駿·張嘉俊"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "體育與健康",
+                                                 "teacher":  "徐梓駿·張嘉俊"
+                                             }
+                                         ],
+                                 "wed":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "分組藝術_視",
+                                                 "teacher":  "進階藝術"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "分組藝術_視",
+                                                 "teacher":  "進階藝術"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "設計科學",
+                                                 "teacher":  "吳振華·李武鴻"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "設計科學",
+                                                 "teacher":  "吳振華·李武鴻"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "其他設科",
+                                                 "teacher":  "吳振華·李武鴻"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組資訊科技",
+                                                 "teacher":  "進階資訊"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "中文2",
+                                                 "teacher":  "鄭炳弟團·鄭炳弟團"
+                                             }
+                                         ],
+                                 "thu":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "聖經",
+                                                 "teacher":  "毛劍賢"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "地理",
+                                                 "teacher":  "周慧心"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "數學_幾",
+                                                 "teacher":  "譚鴻生"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "數學",
+                                                 "teacher":  "梁駿杰"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "地理知識",
+                                                 "teacher":  "顧俐俐"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "中文",
+                                                 "teacher":  "蔡桂枝"
+                                             }
+                                         ],
+                                 "fri":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "中文",
+                                                 "teacher":  "蔡桂枝"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "英語R+S",
+                                                 "teacher":  "梁詠詩·林曦瞳"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "數學",
+                                                 "teacher":  "梁駿杰"
+                                             },
+                                             {
+                                                 "period":  6,
+                                                 "subject":  "中文",
+                                                 "teacher":  "蔡桂枝"
+                                             },
+                                             {
+                                                 "period":  7,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             }
+                                         ],
+                                 "sat":  [
+                                             {
+                                                 "period":  1,
+                                                 "subject":  "留空課程",
+                                                 "teacher":  "蔡桂枝"
+                                             },
+                                             {
+                                                 "period":  2,
+                                                 "subject":  "數學_幾",
+                                                 "teacher":  "譚鴻生"
+                                             },
+                                             {
+                                                 "period":  3,
+                                                 "subject":  "中文",
+                                                 "teacher":  "蔡桂枝"
+                                             },
+                                             {
+                                                 "period":  4,
+                                                 "subject":  "地理",
+                                                 "teacher":  "周慧心"
+                                             },
+                                             {
+                                                 "period":  5,
+                                                 "subject":  "分組英文",
+                                                 "teacher":  "進階英語"
+                                             }
+                                         ]
+                             }
+            }
+}

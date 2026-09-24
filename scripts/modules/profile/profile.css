@@ -1,0 +1,1148 @@
+/* ============================================================
+   模組：用戶登入 / 個人中心（Auth / Profile Switcher）
+   1) Header 用戶膠囊  2) 全螢幕玻璃面板  3) 未登入 Auth 表單
+   4) 已登入 Bento 個人主頁  5) 切換帳號清單  6) 響應式 / 主題
+   ============================================================ */
+
+/* ================= 1. Header 用戶膠囊 ================= */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* 標題維持單行，唔會被右側用戶膠囊擠到換行 */
+.header-top .header-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.header-user {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    /* 44×44 觸控熱區（Apple HIG）：視覺仍是 34px 膠囊，但整個 44px 都可點 */
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 11px 0 3px;
+    border: none;
+    border-radius: 22px;
+    background-color: transparent;
+    color: var(--text-main);
+    font-family: var(--font-family);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    max-width: 152px;
+    transition: transform 0.25s ease;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* 膠囊本體：上下各內縮 5px，在 44px 熱區內維持 34px 高的視覺 */
+.header-user::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 5px;
+    bottom: 5px;
+    border-radius: 17px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background-color: rgba(255, 255, 255, 0.09);
+    pointer-events: none;
+    transition: background-color 0.25s ease;
+}
+
+.header-user > * { position: relative; }
+
+.header-user:hover::before { background-color: rgba(128, 128, 128, 0.22); }
+.header-user:active { transform: scale(0.94); }
+
+.header-user__avatar,
+.header-user__icon {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    border-radius: 50%;
+    display: block;
+}
+
+.header-user__avatar {
+    object-fit: cover;
+    background-color: var(--bg-secondary);
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+}
+
+.header-user__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 900;
+    color: #fff;
+    background: linear-gradient(140deg, #6a5cff, #ff5f9e 55%, #00d4ff);
+}
+
+.header-user__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 106px;
+}
+
+:root[data-theme="light"] .header-user::before {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.06);
+}
+
+:root[data-theme="light"] .header-user__avatar { border-color: rgba(0, 0, 0, 0.12); }
+
+/* ================= 2. 全螢幕玻璃面板 ================= */
+.profile-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+    background-color: rgba(0, 0, 0, 0.55);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+}
+
+.profile-overlay.active {
+    display: flex;
+    animation: profileFadeIn 0.25s ease;
+}
+
+@keyframes profileFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.profile-panel {
+    position: relative;
+    width: 100%;
+    max-width: 393px;
+    height: 100%;
+    max-height: 852px;
+    border-radius: 44px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    /* 先給實色底（#1C1C1E），再用半透明玻璃底覆蓋；
+       這樣即使 backdrop-filter 不支援，內容字色依然清晰可讀 */
+    background-color: #1C1C1E;
+    background-color: rgba(28, 28, 30, 0.86);
+    -webkit-backdrop-filter: blur(36px) saturate(180%);
+    backdrop-filter: blur(36px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    animation: profilePanelIn 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+    isolation: isolate;
+    color: var(--text-main);
+}
+
+@keyframes profilePanelIn {
+    from { opacity: 0; transform: scale(0.94) translateY(24px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+:root[data-theme="light"] .profile-panel {
+    background-color: rgba(246, 246, 250, 0.8);
+    border-color: rgba(255, 255, 255, 0.75);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* 極光光斑：液態玻璃層次 */
+.profile-aurora {
+    position: absolute;
+    inset: -20%;
+    z-index: 0;
+    pointer-events: none;
+    filter: blur(52px);
+    opacity: 0.55;
+}
+
+.profile-aurora span {
+    position: absolute;
+    display: block;
+    border-radius: 50%;
+    animation: profileFloat 16s ease-in-out infinite;
+}
+
+.profile-aurora span:nth-child(1) {
+    width: 240px; height: 240px; top: -40px; left: -60px;
+    background: radial-gradient(circle, rgba(106, 92, 255, 0.85), transparent 70%);
+}
+
+.profile-aurora span:nth-child(2) {
+    width: 220px; height: 220px; top: 120px; right: -70px;
+    background: radial-gradient(circle, rgba(255, 95, 158, 0.8), transparent 70%);
+    animation-duration: 19s;
+    animation-direction: reverse;
+}
+
+.profile-aurora span:nth-child(3) {
+    width: 260px; height: 260px; bottom: -80px; left: 10%;
+    background: radial-gradient(circle, rgba(0, 212, 255, 0.75), transparent 70%);
+    animation-duration: 22s;
+}
+
+:root[data-theme="light"] .profile-aurora { opacity: 0.4; }
+
+@keyframes profileFloat {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    50% { transform: translate3d(24px, -28px, 0) scale(1.12); }
+}
+
+/* ================= 3. 頂部列 + 捲動區 ================= */
+.profile-topbar {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 16px 16px 8px;
+    flex-shrink: 0;
+}
+
+.profile-topbar__title {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: 0.3px;
+    opacity: 0.85;
+}
+
+.profile-close,
+.profile-topbar__ghost {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 900;
+    font-family: var(--font-family);
+    color: var(--text-main);
+    background-color: rgba(255, 255, 255, 0.12);
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.profile-close:hover,
+.profile-topbar__ghost:hover { background-color: rgba(255, 255, 255, 0.22); }
+
+.profile-close:active,
+.profile-topbar__ghost:active { transform: scale(0.9); }
+
+:root[data-theme="light"] .profile-close,
+:root[data-theme="light"] .profile-topbar__ghost { background-color: rgba(0, 0, 0, 0.07); }
+
+.profile-scroll {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 16px 28px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.profile-scroll::-webkit-scrollbar { display: none; }
+
+.profile-view { display: none; }
+
+/* 視圖顯示開關：
+   JS 加上的是 .is-on，這裡同時兼容舊的 .active，
+   兩個類名任何一個存在都會令視圖顯示（之前只寫 .active，
+   而 JS 只加 .is-on，結果 4 個視圖全部 display:none → 彈窗一片漆黑）。 */
+.profile-view.is-on,
+.profile-view.active {
+    display: block;
+    color: var(--text-main);
+    animation: profileViewIn 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 保險索：萬一 JS 未及執行或類名不符，至少顯示登入表單，永不整片漆黑 */
+.profile-scroll:not(:has(.profile-view.is-on)):not(:has(.profile-view.active)) #profile-view-auth {
+    display: block;
+}
+
+@keyframes profileViewIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ================= 4. 未登入：Auth 表單 ================= */
+.auth-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 14px 4px 22px;
+}
+
+.auth-hero__badge {
+    width: 92px;
+    height: 92px;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 42px;
+    margin-bottom: 16px;
+    color: #fff;
+    background: linear-gradient(140deg, #6a5cff, #ff5f9e 55%, #00d4ff);
+    box-shadow: 0 16px 40px rgba(106, 92, 255, 0.45);
+    animation: authBadge 5s ease-in-out infinite;
+}
+
+@keyframes authBadge {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-6px) rotate(-3deg); }
+}
+
+.auth-hero__title {
+    font-size: 21px;
+    font-weight: 900;
+    color: var(--text-main);
+    margin-bottom: 6px;
+    letter-spacing: -0.3px;
+}
+
+.auth-hero__desc {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    line-height: 1.6;
+    max-width: 262px;
+}
+
+/* 玻璃小卡（Auth 表單 / 帳號清單共用） */
+.glass-card {
+    border-radius: 22px;
+    padding: 16px;
+    margin-bottom: 12px;
+    background-color: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="light"] .glass-card {
+    background-color: rgba(255, 255, 255, 0.74);
+    border-color: rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.auth-field { margin-bottom: 14px; }
+.auth-field:last-child { margin-bottom: 0; }
+
+.auth-field__label {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 7px;
+}
+
+.auth-input {
+    width: 100%;
+    padding: 13px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background-color: rgba(0, 0, 0, 0.22);
+    color: var(--text-main);
+    font-family: var(--font-family);
+    font-size: 15px;
+    font-weight: 700;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-input::placeholder { color: var(--text-muted); font-weight: 600; }
+
+.auth-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.25);
+}
+
+:root[data-theme="light"] .auth-input {
+    background-color: rgba(255, 255, 255, 0.92);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+/* 頭像上傳 */
+.auth-upload { display: flex; align-items: center; gap: 14px; }
+
+.auth-upload__preview {
+    position: relative;
+    width: 66px;
+    height: 66px;
+    flex: 0 0 66px;
+    border-radius: 50%;
+    overflow: hidden;
+    background-color: rgba(0, 0, 0, 0.25);
+    border: 2px solid rgba(255, 255, 255, 0.18);
+}
+
+.auth-upload__preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.auth-upload__side { flex: 1; min-width: 0; }
+
+.auth-upload__title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 3px;
+}
+
+.auth-upload__desc {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 9px;
+    line-height: 1.4;
+}
+
+.auth-upload__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn-mini {
+    padding: 8px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    font-family: var(--font-family);
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    background-color: rgba(255, 255, 255, 0.16);
+    color: var(--text-main);
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    outline: none;
+}
+
+.btn-mini:hover { background-color: rgba(255, 255, 255, 0.26); }
+.btn-mini:active { transform: scale(0.94); }
+
+:root[data-theme="light"] .btn-mini { background-color: rgba(0, 0, 0, 0.06); border-color: rgba(0, 0, 0, 0.06); }
+:root[data-theme="light"] .btn-mini:hover { background-color: rgba(0, 0, 0, 0.13); }
+
+.btn-primary-block {
+    width: 100%;
+    padding: 16px;
+    border-radius: 18px;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-family);
+    font-size: 16px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, #6a5cff, #a45cff 45%, #ff5f9e);
+    box-shadow: 0 14px 34px rgba(106, 92, 255, 0.42);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    outline: none;
+    margin-top: 4px;
+}
+
+.btn-primary-block:hover { box-shadow: 0 18px 44px rgba(106, 92, 255, 0.55); }
+.btn-primary-block:active { transform: scale(0.97); }
+
+.btn-ghost-block,
+.btn-danger-block {
+    width: 100%;
+    padding: 15px;
+    border-radius: 18px;
+    cursor: pointer;
+    font-family: var(--font-family);
+    font-size: 15px;
+    font-weight: 800;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    outline: none;
+}
+
+.btn-ghost-block {
+    color: var(--text-main);
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.btn-ghost-block:hover { background-color: rgba(255, 255, 255, 0.2); }
+.btn-ghost-block:active { transform: scale(0.97); }
+
+:root[data-theme="light"] .btn-ghost-block {
+    background-color: rgba(255, 255, 255, 0.9);
+    border-color: rgba(0, 0, 0, 0.07);
+}
+
+.btn-danger-block {
+    color: #fff;
+    background-color: rgba(255, 59, 48, 0.9);
+    border: none;
+}
+
+.btn-danger-block:hover { background-color: #ff3b30; }
+.btn-danger-block:active { transform: scale(0.97); }
+
+.auth-footnote {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    line-height: 1.6;
+    padding: 6px 12px 0;
+}
+
+/* ================= 5. 已登入：Bento Grid 個人主頁 ================= */
+.bento-profile {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.bento-tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    border-radius: 22px;
+    padding: 14px;
+    overflow: hidden;
+    background-color: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="light"] .bento-tile {
+    background-color: rgba(255, 255, 255, 0.76);
+    border-color: rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.bento-tile--full { grid-column: 1 / -1; }
+
+.bento-tile__eyebrow {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.bento-tile__title {
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--text-main);
+    letter-spacing: -0.2px;
+}
+
+.bento-tile__hint {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+
+/* 5-1 Hero：流光頭像框 */
+.profile-hero { display: flex; align-items: center; gap: 14px; padding: 4px 2px; }
+
+.glow-avatar {
+    position: relative;
+    width: 84px;
+    height: 84px;
+    flex: 0 0 84px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.glow-avatar__halo {
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, #6a5cff, #ff5f9e, #ffc400, #00d4ff, #6a5cff);
+    filter: blur(16px);
+    opacity: 0.8;
+    animation: glowSpin 6s linear infinite;
+}
+
+.glow-avatar__ring {
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: conic-gradient(from 90deg, #6a5cff, #00d4ff, #ff5f9e, #ffc400, #6a5cff);
+    animation: glowSpin 4s linear infinite;
+}
+
+.glow-avatar__ring::after {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background-color: rgba(20, 20, 26, 0.92);
+}
+
+:root[data-theme="light"] .glow-avatar__ring::after { background-color: #f4f4f8; }
+
+@keyframes glowSpin {
+    to { transform: rotate(360deg); }
+}
+
+.glow-avatar__frame {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    overflow: hidden;
+    z-index: 1;
+    background-color: var(--bg-secondary);
+}
+
+.glow-avatar__frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.glow-avatar__dot {
+    position: absolute;
+    right: 2px;
+    bottom: 4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    z-index: 2;
+    background-color: var(--coming-green);
+    border: 3px solid rgba(24, 24, 30, 0.92);
+    box-sizing: border-box;
+}
+
+:root[data-theme="light"] .glow-avatar__dot { border-color: #f4f4f8; }
+
+.profile-hero__text { flex: 1; min-width: 0; }
+
+.profile-hero__name {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 21px;
+    font-weight: 900;
+    color: var(--text-main);
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+}
+
+.profile-hero__name span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-hero__meta {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-hero__tags { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.tag-pill {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 5px 10px;
+    border-radius: 10px;
+    color: var(--text-main);
+    background-color: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+}
+
+:root[data-theme="light"] .tag-pill {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.04);
+}
+
+.tag-pill--live {
+    color: #fff;
+    background: linear-gradient(120deg, rgba(52, 199, 89, 0.95), rgba(0, 212, 255, 0.95));
+    border-color: transparent;
+}
+
+/* 5-2 下個假期：全寬 Banner（左：節日圖示＋大字標題；右：高亮倒數） */
+.holiday-banner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+}
+
+/* 兩道柔和光暈，令倒數更醒目（純裝飾，不攔點擊） */
+.holiday-banner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(120% 150% at 6% 0%, rgba(106, 92, 255, 0.30), transparent 62%),
+        radial-gradient(90% 130% at 100% 100%, rgba(0, 212, 255, 0.22), transparent 64%);
+    pointer-events: none;
+}
+
+:root[data-theme="light"] .holiday-banner::before {
+    background:
+        radial-gradient(120% 150% at 6% 0%, rgba(106, 92, 255, 0.16), transparent 62%),
+        radial-gradient(90% 130% at 100% 100%, rgba(0, 212, 255, 0.14), transparent 64%);
+}
+
+.holiday-banner__main {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.holiday-banner__icon {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 15px;
+    background-color: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+:root[data-theme="light"] .holiday-banner__icon {
+    background-color: rgba(255, 255, 255, 0.9);
+    border-color: rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.holiday-banner__body { min-width: 0; }
+
+.holiday-banner__title {
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1.25;
+    color: var(--text-main);
+    letter-spacing: -0.3px;
+}
+
+.holiday-banner__title-label {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-muted);
+}
+
+.holiday-banner__range {
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* 右側倒數徽章（還有／N／天 垂直堆疊，窄屏都夠位） */
+.holiday-banner__countdown {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    min-width: 66px;
+    padding: 8px 12px;
+    border-radius: 18px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+:root[data-theme="light"] .holiday-banner__countdown {
+    background-color: rgba(106, 92, 255, 0.08);
+    border-color: rgba(106, 92, 255, 0.16);
+    box-shadow: none;
+}
+
+.holiday-banner__lead,
+.holiday-banner__unit {
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.4px;
+    color: var(--text-muted);
+}
+
+.holiday-banner__lead:empty,
+.holiday-banner__unit:empty { display: none; }
+
+.holiday-banner__num {
+    font-size: 30px;
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -1px;
+    font-variant-numeric: tabular-nums;
+    background: linear-gradient(120deg, #6a5cff 12%, #00d4ff 88%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+
+/* 假期已開始（今天／假期中）：改文字，縮回小字避免撐爆徽章 */
+.holiday-banner__num.is-text {
+    font-size: 15px;
+    letter-spacing: 0;
+}
+
+/* 5-3 專案展示牆 */
+.wall {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.wall-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 10px;
+    border-radius: 16px;
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--font-family);
+    min-width: 0;
+    color: var(--text-main);
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.wall-tile:hover { background-color: rgba(255, 255, 255, 0.16); }
+.wall-tile:active { transform: scale(0.95); }
+
+:root[data-theme="light"] .wall-tile {
+    background-color: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.04);
+}
+
+.wall-tile__icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    background: rgba(255, 255, 255, 0.14);
+    /* 圖示框係獨立正方形，唔應該有任何內距影響居中 */
+    padding: 0;
+    overflow: hidden;
+}
+
+/* 圖示必須絕對居中（上下左右空隙相等）：
+   .bento-tile .app-icon 係為「圖示與文字並排」而設嘅 margin-right: 4px /
+   vertical-align: -0.16em，但展示牆本身就喺 .bento-tile 之內，會連帶中招 ——
+   flex 居中時嗰 4px 右邊距會被當成內容一部分，令圖示向左偏 2px。
+   呢度明確清零，確保純幾何居中。
+   選擇器刻意寫到 3 個 class（.wall-tile + .wall-tile__icon + .app-icon），
+   特異性高於 icons.css 嘅 .bento-tile .app-icon，唔靠樣式表載入順序取勝。 */
+.wall-tile .wall-tile__icon .app-icon,
+.wall-tile .wall-tile__icon svg {
+    display: block;
+    margin: 0;
+    vertical-align: 0;
+    flex: 0 0 auto;
+}
+
+:root[data-theme="light"] .wall-tile__icon { background: rgba(0, 0, 0, 0.06); }
+
+.wall-tile__name {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wall-tile__desc {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 5-4 帳號操作 */
+.action-stack { display: flex; flex-direction: column; gap: 9px; margin-top: 10px; }
+
+.profile-signature {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.4px;
+    padding: 14px 0 2px;
+}
+
+/* 版本號：長按 / 連點 5 下 → 開發者模式入口 */
+.profile-version {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--divider-color);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10px;
+    letter-spacing: 0.6px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.profile-version:active {
+    transform: scale(0.94);
+    opacity: 0.75;
+}
+
+/* ================= 6. 切換帳號清單 ================= */
+.accounts-head {
+    text-align: center;
+    padding: 8px 8px 18px;
+}
+
+.accounts-head__title {
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--text-main);
+    margin-bottom: 5px;
+    letter-spacing: -0.3px;
+}
+
+.accounts-head__desc {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.accounts-list { display: flex; flex-direction: column; gap: 9px; }
+
+.acc-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 12px;
+    border-radius: 18px;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    font-family: var(--font-family);
+    background-color: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.acc-item:hover { background-color: rgba(255, 255, 255, 0.16); }
+.acc-item:active { transform: scale(0.98); }
+
+:root[data-theme="light"] .acc-item {
+    background-color: rgba(255, 255, 255, 0.8);
+    border-color: rgba(0, 0, 0, 0.05);
+}
+
+.acc-item.is-current {
+    border-color: rgba(106, 92, 255, 0.75);
+    background-color: rgba(106, 92, 255, 0.18);
+    box-shadow: 0 0 0 1px rgba(106, 92, 255, 0.35);
+}
+
+.acc-item__avatar {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    background-color: var(--bg-secondary);
+    border: 1.5px solid rgba(255, 255, 255, 0.18);
+}
+
+.acc-item__info { flex: 1; min-width: 0; }
+
+.acc-item__name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--text-main);
+    letter-spacing: -0.2px;
+    margin-bottom: 3px;
+}
+
+.acc-item__name span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.acc-item__meta {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.acc-item__check {
+    font-size: 15px;
+    font-weight: 900;
+    color: #7b6cff;
+    flex-shrink: 0;
+}
+
+.acc-item__remove {
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 900;
+    color: var(--text-muted);
+    background-color: rgba(128, 128, 128, 0.16);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.acc-item__remove:hover {
+    background-color: rgba(255, 59, 48, 0.9);
+    color: #fff;
+}
+
+.acc-item--add {
+    justify-content: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-main);
+    background-color: transparent;
+    border: 1.5px dashed rgba(255, 255, 255, 0.22);
+}
+
+.acc-item--add:hover { background-color: rgba(255, 255, 255, 0.08); }
+
+:root[data-theme="light"] .acc-item--add { border-color: rgba(0, 0, 0, 0.16); }
+
+.acc-item__icon {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 900;
+    color: #fff;
+    background: linear-gradient(140deg, #6a5cff, #ff5f9e 60%, #00d4ff);
+}
+
+/* ================= 7. Toast ================= */
+.profile-toast {
+    /* 已移出 .profile-overlay，改用 fixed 令彈窗關閉後仍可顯示提示 */
+    position: fixed;
+    left: 50%;
+    bottom: 34px;
+    transform: translate(-50%, 18px);
+    z-index: 10050;
+    max-width: 82%;
+    padding: 11px 20px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: center;
+    color: #fff;
+    background-color: rgba(0, 0, 0, 0.78);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
+.profile-toast.is-on {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+/* ================= 8. 響應式 ================= */
+@media (max-width: 500px) {
+    .profile-overlay { padding: 0; }
+
+    .profile-panel {
+        max-width: 100%;
+        max-height: 100%;
+        height: 100dvh;
+        border-radius: 0;
+        border: none;
+        /* 頂部安全區域：避開動態島／狀態欄。
+           第一行係舊瀏覽器保底值，之後才用 env() 精算 */
+        padding-top: 44px;
+        padding-top: calc(constant(safe-area-inset-top) + 10px);
+        padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+    }
+
+    .profile-scroll { padding-bottom: max(28px, env(safe-area-inset-bottom, 0px)); }
+
+    .header-user { max-width: 132px; }
+    .header-user__name { max-width: 74px; }
+}
+
+@media (max-width: 360px) {
+    .header-user__name { display: none; }
+    /* 只顯示頭像時置中，維持 44px 觸控熱區 */
+    .header-user { padding: 0 8px; justify-content: center; }
+}
+

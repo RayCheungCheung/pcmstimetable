@@ -1,0 +1,23 @@
+{
+    "events": [
+        { "date": "2026-09-10", "title": "教師節假期", "type": "holiday", "emoji": "🍎", "icon": "book" },
+        { "date": "2026-09-26", "title": "中秋節翌日", "type": "holiday", "emoji": "🥮", "icon": "moon" },
+        { "date": "2026-10-01", "title": "國慶假期", "type": "holiday", "emoji": "🎆", "icon": "flag" },
+        { "date": "2026-10-02", "title": "國慶假期", "type": "holiday", "emoji": "🎆", "icon": "flag" },
+        { "date": "2026-10-03", "title": "國慶假期", "type": "holiday", "emoji": "🎆", "icon": "flag" },
+        { "date": "2026-10-18", "title": "重陽節假期", "type": "holiday", "emoji": "🌼", "icon": "mountain" },
+        { "date": "2026-10-22", "title": "重陽節補假", "type": "holiday", "emoji": "🌼", "icon": "mountain" },
+        { "date": "2026-12-20", "title": "特區成立紀念日", "type": "holiday", "emoji": "🎉", "icon": "flag" },
+        { "date": "2026-12-21", "title": "冬至及聖誕假期", "type": "holiday", "emoji": "🎄", "icon": "tree" },
+        { "date": "2026-12-22", "title": "冬至及聖誕假期", "type": "holiday", "emoji": "🎄", "icon": "tree" },
+        { "date": "2026-12-23", "title": "冬至及聖誕假期", "type": "holiday", "emoji": "🎄", "icon": "tree" },
+        { "date": "2026-12-24", "title": "冬至及聖誕假期", "type": "holiday", "emoji": "🎄", "icon": "tree" },
+        { "date": "2026-12-25", "title": "冬至及聖誕假期", "type": "holiday", "emoji": "🎄", "icon": "tree" },
+        { "date": "2027-01-01", "title": "元旦假期", "type": "holiday", "emoji": "🥂", "icon": "sparkles" },
+        { "date": "2027-02-03", "title": "春節假期", "type": "holiday", "emoji": "🧧", "icon": "gift" },
+        { "date": "2027-02-06", "title": "春節", "type": "holiday", "emoji": "🧧", "icon": "gift" },
+        { "date": "2027-03-08", "title": "婦女節", "type": "holiday", "emoji": "🌷", "icon": "flower" },
+        { "date": "2027-03-26", "title": "復活節假期", "type": "holiday", "emoji": "🐰", "icon": "egg" },
+        { "date": "2027-04-05", "title": "清明節假期", "type": "holiday", "emoji": "🌿", "icon": "leaf" }
+    ]
+}

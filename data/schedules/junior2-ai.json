@@ -1,0 +1,54 @@
+{
+    "1": [
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "留空課程", "teacher": "吳惠梨" },
+        { "period": 2, "start": "09:00", "end": "09:40", "subject": "周會", "teacher": "吳惠梨" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "品德公民", "teacher": "吳惠梨" },
+        { "period": 4, "start": "10:40", "end": "11:20", "subject": "數學", "teacher": "梁駿杰" },
+        { "period": 5, "start": "11:35", "end": "12:15", "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 6, "start": "14:15", "end": "14:55", "subject": "中文", "teacher": "吳惠梨" },
+        { "period": 7, "start": "15:05", "end": "15:45", "subject": "數學_幾", "teacher": "梁駿杰" }
+    ],
+    "2": [
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "品德公民", "teacher": "陳健鴻" },
+        { "period": 2, "start": "09:00", "end": "09:40", "subject": "體育與健康", "teacher": "容毅燊·張永豪" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "體育與健康", "teacher": "容毅燊·張永豪" },
+        { "period": 4, "start": "10:40", "end": "11:20", "subject": "中文", "teacher": "吳惠梨" },
+        { "period": 5, "start": "11:35", "end": "12:15", "subject": "中文", "teacher": "吳惠梨" },
+        { "period": 6, "start": "14:15", "end": "14:55", "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 7, "start": "15:05", "end": "15:45", "subject": "分組英文", "teacher": "進階英語" }
+    ],
+    "3": [
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "數學_幾", "teacher": "梁駿杰" },
+        { "period": 2, "start": "09:00", "end": "09:40", "subject": "地理", "teacher": "顧俐俐" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "聖經", "teacher": "毛劍賢" },
+        { "period": 4, "start": "10:40", "end": "11:20", "subject": "中文", "teacher": "吳惠梨" },
+        { "period": 5, "start": "11:35", "end": "12:15", "subject": "數學", "teacher": "梁駿杰" },
+        { "period": 6, "start": "14:15", "end": "14:55", "subject": "中文", "teacher": "吳惠梨" },
+        { "period": 7, "start": "15:05", "end": "15:45", "subject": "分組英文", "teacher": "進階英語" }
+    ],
+    "4": [
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "分組資訊科技", "teacher": "進階資訊" },
+        { "period": 2, "start": "09:00", "end": "09:40", "subject": "中文", "teacher": "吳惠梨" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "地理知識", "teacher": "顧俐俐" },
+        { "period": 4, "start": "10:40", "end": "11:20", "subject": "中文2", "teacher": "鄭炳弟團·鄭炳弟團" },
+        { "period": 5, "start": "11:35", "end": "12:15", "subject": "數學", "teacher": "梁駿杰" },
+        { "period": 6, "start": "14:15", "end": "14:55", "subject": "地理", "teacher": "顧俐俐" },
+        { "period": 7, "start": "15:05", "end": "15:45", "subject": "分組英文", "teacher": "進階英語" }
+    ],
+    "5": [
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "英語R+S", "teacher": "梁詠詩·林曦瞳" },
+        { "period": 2, "start": "09:00", "end": "09:40", "subject": "數學AI", "teacher": "黃燦霖" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "數學AI", "teacher": "黃燦霖" },
+        { "period": 4, "start": "10:40", "end": "11:20", "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 5, "start": "11:35", "end": "12:15", "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 6, "start": "14:15", "end": "14:55", "subject": "藝術_視", "teacher": "黃慧儀" },
+        { "period": 7, "start": "15:05", "end": "15:45", "subject": "藝術_視", "teacher": "黃慧儀" }
+    ],
+    "6": [
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "留空課程", "teacher": "吳惠梨" },
+        { "period": 2, "start": "09:00", "end": "09:40", "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "設計科學", "teacher": "陳健鴻" },
+        { "period": 4, "start": "10:40", "end": "11:20", "subject": "設計科學", "teacher": "陳健鴻" },
+        { "period": 5, "start": "11:35", "end": "12:15", "subject": "其他設科", "teacher": "陳健鴻" }
+    ]
+}

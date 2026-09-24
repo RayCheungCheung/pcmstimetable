@@ -1,0 +1,47 @@
+#page-menu {
+    justify-content: center;
+    align-items: center;
+    padding-bottom: 40px;
+}
+
+.menu-title {
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+.menu-title .sub {
+    font-size: 20px;
+    color: #fff;
+    margin-bottom: 10px;
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+
+.menu-title .main {
+    font-size: 38px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: #fff;
+}
+
+.menu-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+    max-width: 320px;
+    background: #d1d5e6;
+    padding: 35px 25px;
+    border-radius: 30px;
+}
+
+.footer {
+    position: absolute;
+    bottom: 25px;
+    width: 100%;
+    text-align: center;
+    font-size: 12px;
+    color: #636366;
+    left: 0;
+    font-weight: 500;
+}

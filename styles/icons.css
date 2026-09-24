@@ -1,0 +1,115 @@
+/* ============================================================
+   icons.css — 統一 SVG 圖示樣式（配合 scripts/utils/icons.js）
+   規範：stroke-width 1.8 / round cap / fill none / currentColor
+   ============================================================ */
+
+.app-icon {
+    display: inline-block;
+    vertical-align: middle;
+    flex: 0 0 auto;
+    color: inherit;
+    pointer-events: none;
+    overflow: visible;
+}
+
+/* ---------- 搜尋列：前置放大鏡 ---------- */
+
+.search-container .search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b6b70;
+    pointer-events: none;
+    z-index: 2;
+}
+
+#search-input { padding-left: 46px; }
+
+/* ---------- 只放圖示的圓形按鈕：一律置中 ---------- */
+
+.profile-close,
+.gcal-close-btn,
+.info-modal-close,
+.cal-event-delete,
+.acc-item__remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ---------- 頂部主題切換：跟隨次要文字色 ---------- */
+
+.theme-toggle-corner .theme-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
+/* ---------- 與文字並排時微調 baseline ---------- */
+
+.cal-event .app-icon,
+.search-day .app-icon,
+.search-subject .app-icon,
+.hw-item .app-icon,
+.bento-tile .app-icon,
+.auth-footnote .app-icon {
+    vertical-align: -0.16em;
+    margin-right: 4px;
+}
+
+/* ---------- 開發者面板：分頁標籤內的圖示 ---------- */
+
+.dev-tab .app-icon { margin-right: 1px; }
+
+/* ---------- 個人中心：下個假期 Banner 的節日徽章 ---------- */
+
+#stat-holiday-icon .app-icon {
+    margin-right: 0;
+    vertical-align: 0;
+}
+
+/* ============================================================
+   內容層節日 Emoji（僅限假期列表 / 活動清單；系統 UI 一律禁用）
+   由 scripts/utils/icons.js 的 contentIcon() 產生
+   ============================================================ */
+
+.emoji-badge {
+    display: inline-block;
+    line-height: 1;
+    font-style: normal;
+    font-weight: 400;
+    vertical-align: -0.16em;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+                 "Noto Color Emoji", "Twemoji Mozilla", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+/* 假期列表／倒數：大尺寸節日標籤，加一點柔和陰影提升質感 */
+.holiday-emoji .emoji-badge,
+.countdown-number .emoji-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.18));
+}
+
+/* 與文字並排的內容標籤 */
+.cal-event .emoji-badge,
+.cal-event-item .emoji-badge,
+.cal-event-emoji .emoji-badge,
+.search-subject .emoji-badge {
+    margin-right: 4px;
+}
+
+/* 下個假期 Banner：Emoji 在徽章內置中，不另留右邊距 */
+#stat-holiday-icon .emoji-badge {
+    margin-right: 0;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.18));
+}

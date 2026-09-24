@@ -1,0 +1,39 @@
+/* ================= 按鈕 ================= */
+.menu-btn {
+    background-color: var(--card-purple);
+    border: none;
+    border-radius: 20px;
+    padding: 22px;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--text-dark);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: var(--font-family);
+    text-align: center;
+}
+
+.menu-btn:active {
+    transform: scale(0.96);
+    background-color: var(--card-purple-dark);
+}
+
+.view-full-btn {
+    background-color: var(--btn-bg);
+    border: none;
+    border-radius: 25px;
+    padding: 18px;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--text-dark);
+    cursor: pointer;
+    width: 100%;
+    font-family: var(--font-family);
+    transition: all 0.2s;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.view-full-btn:active {
+    transform: scale(0.97);
+    background-color: #b0b5d1;
+}

@@ -1,0 +1,83 @@
+.search-container {
+    width: 100%;
+    max-width: 320px;
+    /* 搜尋框與第一張卡片之間只保留少量呼吸位；
+       其餘間距由 #app-header 底部內距與 #app-content 頂部內距提供，
+       避免加起來變成一大片空白 */
+    margin-bottom: 4px;
+    position: relative;
+}
+
+#search-input {
+    width: 100%;
+    padding: 15px 20px;
+    border-radius: 20px;
+    border: none;
+    background-color: #d1d5e6;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a1a;
+    font-family: var(--font-family);
+    outline: none;
+}
+
+/* 輸入提示文字：底色 #d1d5e6 係寫死嘅淺灰，所以提示色都跟本檔嘅 #1a1a1a 加透明度，
+   而唔用 var(--text-muted)（深色主題會變得太淺、對比不足）。
+   註：呢條規則原本只存在於從未被 <link> 嘅 styles/pages/search.css，
+   該檔已刪除，規則在此生效。 */
+#search-input::placeholder {
+    color: rgba(26, 26, 26, 0.45);
+}
+
+.search-results {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: #d1d5e6;
+    border-radius: 15px;
+    margin-top: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 100;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+}
+
+.search-results.active {
+    display: block;
+}
+
+.search-item {
+    padding: 12px 18px;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    color: #1a1a1a;
+}
+
+.search-item:last-child {
+    border-bottom: none;
+}
+
+.search-day {
+    font-size: 12px;
+    color: #666;
+    font-weight: 700;
+}
+
+.search-subject {
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.search-info {
+    font-size: 12px;
+    color: #666;
+    font-weight: 600;
+}
+
+.search-empty {
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    font-weight: 600;
+}

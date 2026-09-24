@@ -1,0 +1,128 @@
+/* ================= 測驗 / 作業倒數 ================= */
+.hw-header {
+    background-color: var(--card-purple);
+    border-radius: 25px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+    margin-top: 50px;
+}
+
+.hw-header .title {
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--text-dark);
+}
+
+.hw-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 30px;
+}
+
+.hw-card {
+    background-color: var(--card-purple);
+    border-radius: 20px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    transition: transform 0.2s;
+}
+
+.hw-card.urgent {
+    box-shadow: 0 0 0 3px var(--now-red);
+}
+
+.hw-card.soon {
+    box-shadow: 0 0 0 3px #ff9500;
+}
+
+.hw-subject-badge {
+    background-color: var(--text-dark);
+    color: var(--text-main);
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: 900;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.hw-info {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.hw-title {
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--text-dark);
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+
+.hw-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.hw-submit-tag {
+    display: inline-block;
+    background-color: #ff9500;
+    color: white;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 900;
+    margin-top: 4px;
+}
+
+.hw-countdown {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--coming-green);
+    color: white;
+    border-radius: 12px;
+    padding: 8px 12px;
+    min-width: 55px;
+    flex-shrink: 0;
+}
+
+.hw-countdown.urgent {
+    background-color: var(--now-red);
+}
+
+.hw-countdown.soon {
+    background-color: #ff9500;
+}
+
+.hw-countdown.passed {
+    background-color: #666;
+}
+
+.hw-countdown-number {
+    font-size: 20px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.hw-countdown-label {
+    font-size: 10px;
+    font-weight: 700;
+    margin-top: 3px;
+    opacity: 0.9;
+}
+
+.hw-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    font-size: 18px;
+    font-weight: 600;
+}

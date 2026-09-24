@@ -1,0 +1,162 @@
+.class-card {
+    background-color: var(--card-purple);
+    border-radius: 18px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    min-height: 74px;
+    box-shadow: var(--card-shadow);
+    border: var(--card-border);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.class-card.current-class {
+    box-shadow: 0 0 0 3px var(--now-red), var(--card-shadow);
+}
+
+.class-card .period {
+    width: 42px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-weight: 900;
+    font-size: 13px;
+    color: var(--text-dark);
+    border-right: 1.5px solid var(--divider-color);
+    padding-right: 14px;
+    margin-right: 16px;
+    flex-shrink: 0;
+    line-height: 1.1;
+}
+
+.class-card .period span { font-size: 18px; }
+
+.class-card .info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+}
+
+.class-card .subject {
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--text-dark);
+    line-height: 1.1;
+    margin-bottom: 3px;
+    letter-spacing: -0.3px;
+}
+
+.class-card .subject.long-text { font-size: 20px; }
+
+.class-card .teacher {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+    font-weight: 600;
+}
+
+.class-card .time {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dark);
+    font-variant-numeric: tabular-nums;
+}
+
+.status-card {
+    border-radius: 20px;
+    overflow: hidden;
+    color: white;
+    box-shadow: var(--card-shadow, 0 4px 12px rgba(0,0,0,0.15));
+}
+
+.status-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 18px;
+    font-weight: 900;
+    font-size: 19px;
+    letter-spacing: 1px;
+}
+
+.status-header .countdown {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 22px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+}
+
+.status-header .countdown-label {
+    font-size: 11px;
+    text-align: right;
+    line-height: 1.1;
+    opacity: 0.9;
+    font-weight: 700;
+}
+
+.status-body {
+    background-color: var(--card-purple);
+    padding: 18px 14px;
+    text-align: center;
+    color: var(--text-dark);
+    position: relative;
+    transition: background-color 0.3s ease;
+}
+
+.status-body .subject {
+    font-size: 40px;
+    font-weight: 900;
+    margin-bottom: 6px;
+    letter-spacing: -1px;
+    line-height: 1.1;
+}
+
+.status-body .subject.long-text { font-size: 30px; }
+
+.status-body .teacher {
+    font-size: 15px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.status-body .time-range {
+    font-size: 16px;
+    font-weight: 900;
+    color: white;
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.status-card.now .status-header { background-color: var(--now-red); }
+
+.status-card.now .status-body .time-range {
+    background-color: var(--now-red);
+    width: 100%;
+    display: block;
+    border-radius: 0;
+    padding: 10px 0;
+    margin-top: 12px;
+}
+
+.status-card.coming .status-header { background-color: var(--coming-green); }
+
+.status-card.coming .status-body .time-range {
+    background-color: var(--coming-green);
+    width: 100%;
+    display: block;
+    border-radius: 0;
+    padding: 10px 0;
+    margin-top: 12px;
+}

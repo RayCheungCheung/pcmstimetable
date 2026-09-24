@@ -1,0 +1,15 @@
+{
+    "holidays": [
+        { "name": "教師節假期", "date": "2026-09-10", "endDate": "2026-09-10", "emoji": "🍎", "icon": "book", "note": "9月10日" },
+        { "name": "中秋節翌日", "date": "2026-09-26", "endDate": "2026-09-26", "emoji": "🥮", "icon": "moon", "note": "9月26日" },
+        { "name": "國慶假期", "date": "2026-10-01", "endDate": "2026-10-03", "emoji": "🇨🇳", "icon": "flag", "note": "10月1日至3日" },
+        { "name": "重陽節假期", "date": "2026-10-18", "endDate": "2026-10-22", "emoji": "🌼", "icon": "mountain", "note": "10月18日重陽節，10月22日補假" },
+        { "name": "特區成立紀念日", "date": "2026-12-20", "endDate": "2026-12-20", "emoji": "🇲🇴", "icon": "flag", "note": "12月20日" },
+        { "name": "冬至及聖誕假期", "date": "2026-12-21", "endDate": "2026-12-31", "emoji": "🎄", "icon": "tree", "note": "12月21日至31日" },
+        { "name": "元旦假期", "date": "2027-01-01", "endDate": "2027-01-02", "emoji": "🥂", "icon": "sparkles", "note": "1月1日至2日" },
+        { "name": "春節假期", "date": "2027-02-03", "endDate": "2027-02-14", "emoji": "🧧", "icon": "gift", "note": "2月3日至14日（2月6日春節）" },
+        { "name": "婦女節", "date": "2027-03-08", "endDate": "2027-03-08", "emoji": "🌷", "icon": "flower", "note": "3月8日" },
+        { "name": "復活節假期", "date": "2027-03-26", "endDate": "2027-03-29", "emoji": "🐰", "icon": "egg", "note": "3月26日至29日" },
+        { "name": "清明節假期", "date": "2027-04-05", "endDate": "2027-04-05", "emoji": "🌿", "icon": "leaf", "note": "4月5日" }
+    ]
+}

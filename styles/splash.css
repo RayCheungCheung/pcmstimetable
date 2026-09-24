@@ -1,0 +1,90 @@
+/* ================= Splash Screen ================= */
+#splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #1a1a1a;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* ================= 書本 Logo ================= */
+.splash-logo {
+    width: 160px;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: center center;
+    position: relative;
+    z-index: 2;
+    /* Step 1 + Step 2 動畫 */
+    animation: logoSpin 0.8s cubic-bezier(0.45, 0, 0.55, 1) forwards,
+               logoExpand 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.8s forwards;
+}
+
+.splash-logo svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* ================= Step 1：旋轉 2 圈（快下慢上） ================= */
+@keyframes logoSpin {
+    0%   { transform: rotate(0deg); }
+    25%  { transform: rotate(180deg); }   /* 向下半圈：快速 */
+    50%  { transform: rotate(360deg); }   /* 向上半圈：緩慢 */
+    75%  { transform: rotate(540deg); }   /* 向下半圈：快速 */
+    100% { transform: rotate(720deg); }   /* 向上半圈：緩慢 */
+}
+
+/* ================= Step 2：急速放大 ================= */
+@keyframes logoExpand {
+    0% {
+        transform: rotate(720deg) scale(1);
+        opacity: 1;
+    }
+    60% {
+        opacity: 1;
+    }
+    100% {
+        transform: rotate(720deg) scale(40);
+        opacity: 0;
+    }
+}
+
+/* ================= Step 3：全白遮罩 ================= */
+#splash-screen::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background-color: #FFFFFF;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    animation: whiteExpand 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.8s forwards;
+    z-index: 1;
+}
+
+@keyframes whiteExpand {
+    0%   { width: 0; height: 0; }
+    100% { width: 300vmax; height: 300vmax; }
+}
+
+/* ================= Step 4：淡出 ================= */
+#splash-screen.hidden {
+    transition: opacity 0.3s ease;
+    opacity: 0;
+    pointer-events: none;
+}
+
+#splash-screen.removed {
+    display: none !important;
+}

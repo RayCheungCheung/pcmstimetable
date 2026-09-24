@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>我的課表</title>
+
+    <!-- 部署路徑修正：必須放喺所有 link / script 之前 -->
+    <script>
+    (function () {
+        // 問題 1：GitHub Pages 等靜態主機如果用「無結尾斜線」嘅資料夾網址開啟，
+        // 相對路徑會少算一層，令 CSS / JS / JSON 全部 404（本機開反而正常）。
+        // 解決：即時補一個 <base>，之後所有相對路徑都用返正確目錄。
+        var path = location.pathname;
+        if (!/\.html?$/i.test(path) && !/\/$/.test(path)) {
+            var base = document.createElement('base');
+            base.href = path + '/';
+            document.head.appendChild(base);
+        }
+
+        // 問題 2：所有模組共用同一個路徑工具讀 JSON，避免各自計錯相對路徑。
+        window.appUrl = function (relativePath) {
+            return new URL(String(relativePath).replace(/^\.?\//, ''), document.baseURI).href;
+        };
+    })();
+    </script>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#b0b5d1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="我的課表">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+    <!-- 全站統一 Logo：黑底白線開書（SVG 為向量主檔，PNG 為 PWA 圖示） -->
+    <link rel="icon" type="image/svg+xml" href="assets/images/app-logo.svg?v=2.5.0">
+    <link rel="icon" type="image/png" href="assets/icons/icon-192.png">
+    
+    <!-- 樣式表 -->
+    <!-- ?v= 版本號：強制瀏覽器／Service Worker 重新抓新版本，避免快取舊 CSS 令 Tab 圖示消失 -->
+    <link rel="stylesheet" href="styles/main.css?v=2.5.0">
+    <link rel="stylesheet" href="styles/icons.css?v=2.5.0">
+    <link rel="stylesheet" href="styles/splash.css?v=2.5.0">
+    <link rel="stylesheet" href="styles/themes/dark.css">
+    <link rel="stylesheet" href="styles/themes/light.css">
+    <link rel="stylesheet" href="styles/components/cards.css">
+    <link rel="stylesheet" href="styles/components/buttons.css">
+    <link rel="stylesheet" href="styles/components/animations.css">
+    <link rel="stylesheet" href="styles/pages/menu.css">
+    <link rel="stylesheet" href="styles/pages/schedule.css">
+    <link rel="stylesheet" href="styles/pages/realtime.css">
+    <link rel="stylesheet" href="scripts/modules/search/search.css?v=2.5.0">
+    <link rel="stylesheet" href="scripts/modules/theme/theme.css?v=2.5.0">
+    <!-- 週覽樣式：本模組檔同時負責課表格子卡片（.weekly-table td）與資訊彈窗樣式。
+         原 styles/pages/weekly.css 因為無任何地方 <link> 而完全失效，
+         已把格子／彈窗規則併入本檔並刪除該檔，避免再有兩份真相導致「格子退化成純文字」。
+         （.weekly-header 的 margin-top: 50px 大空白亦維持已移除狀態） -->
+    <link rel="stylesheet" href="scripts/modules/weekly/weekly.css?v=2.5.0">
+    <link rel="stylesheet" href="scripts/modules/holidays/holidays.css?v=2.5.0">
+    <link rel="stylesheet" href="scripts/modules/expand/expand.css?v=2.5.0">
+    <link rel="stylesheet" href="scripts/modules/calendar/calendar.css?v=2.5.0">
+    <link rel="stylesheet" href="scripts/modules/profile/profile.css?v=2.5.0">
+    <link rel="stylesheet" href="scripts/modules/auth/auth.css?v=2.5.0">
+    <link rel="stylesheet" href="scripts/modules/devtools/devtools.css?v=2.5.0">
+    <!-- Liquid Glass 光學圖層（必須排在 main.css 之後，才能蓋過舊的玻璃塗裝） -->
+    <link rel="stylesheet" href="scripts/modules/liquidglass/liquidglass.css?v=2.5.0">
+</head>
+<body>
+
+<!-- ================= Splash Screen ================= -->
+<div id="splash-screen">
+    <div class="splash-logo">
+        <!-- App Logo：黑色底 + 白色線條開啟書本（Black Background + White Line Book） -->
+        <img class="app-logo splash-logo__img" src="assets/images/app-logo.svg?v=2.5.0" alt="我的課表">
+    </div>
+</div>
+
+<div class="phone-mockup">
+    <div class="dynamic-island"></div>
+    <div class="status-bar"></div>
+
+    <!-- 頂部 Header -->
+    <div id="app-header">
+        <div class="header-top">
+            <!-- 品牌列：統一使用黑底白線開書 Logo（與 Splash / Modal / PWA 圖示一致） -->
+            <div class="header-brand">
+                <img class="header-logo" src="assets/images/app-logo.svg?v=2.5.0" alt="" aria-hidden="true">
+                <div class="header-title" id="header-title">我的課表</div>
+            </div>
+            <div class="header-actions">
+                <button class="theme-toggle-corner" id="theme-toggle" onclick="toggleTheme()"
+                        aria-label="切換深色 / 淺色模式">
+                    <!-- 深色模式顯示太陽、淺色模式顯示彎月（由 theme.js 即時更新） -->
+                    <span class="theme-icon" id="theme-icon" data-icon="sun" data-icon-size="20"></span>
+                </button>
+                <!-- 用戶入口：未登入顯示「＋登入」，登入後顯示頭像與名字 -->
+                <button class="header-user" id="header-user" onclick="openProfilePanel()"
+                        aria-label="登入 / 用戶切換">
+                    <span class="header-user__icon">+</span>
+                    <span class="header-user__name">登入</span>
+                </button>
+            </div>
+        </div>
+        <div class="search-container">
+            <span class="search-icon" data-icon="search" data-icon-size="17"></span>
+            <input type="text" id="search-input" placeholder="搜尋科目、老師或日期...">
+            <div id="search-results" class="search-results"></div>
+        </div>
+    </div>
+
+    <!-- 主內容區域 -->
+    <div id="app-content">
+        
+        <div id="page-weekly" class="page">
+            <div class="weekly-header">
+                <div class="title">本週課表總覽</div>
+            </div>
+            <!-- 班級專屬課表缺失時，提示目前顯示的是預設課表 -->
+            <div class="schedule-notice" id="schedule-notice">
+                <span class="schedule-notice__icon" data-icon="info" data-icon-size="15"></span><span id="schedule-notice-text"></span>
+            </div>
+            <!-- 尚未選擇班級：課表區域顯示引導卡（唔會預設顯示任何班級課表）
+                 顯示狀態由 main.js renderClassPrompt() 控制 -->
+            <div class="class-prompt" id="class-prompt">
+                <span class="class-prompt__icon" data-icon="book" data-icon-size="30"></span>
+                <div class="class-prompt__title">請先選擇班級</div>
+                <div class="class-prompt__desc">選好班級先會載入對應嘅課表，未選之前唔會顯示任何班級嘅課表。</div>
+                <button class="class-prompt__btn" type="button"
+                        onclick="openProfilePanel('class')">選擇班級</button>
+            </div>
+            <div class="weekly-grid" id="weekly-grid-container"></div>
+        </div>
+
+        <div id="page-schedule" class="page">
+            <div class="schedule-header">
+                <div class="title" id="schedule-title-text">明日課表</div>
+                <div class="date" id="schedule-date-text">載入中...</div>
+            </div>
+            <div class="schedule-list" id="schedule-list-container"></div>
+        </div>
+
+        <div id="page-realtime" class="page active">
+            <div class="realtime-clock">
+                <div class="label">即時時間</div>
+                <div class="time" id="live-clock">00:00:00</div>
+                <div class="utc">UTC+8</div>
+            </div>
+            <div class="status-container" id="status-container"></div>
+        </div>
+
+        <div id="page-holidays" class="page">
+            <div class="holidays-header">
+                <div class="title">下一個假期</div>
+            </div>
+            <div class="holidays-container" id="holidays-container"></div>
+        </div>
+
+        <div id="page-calendar" class="page">
+            <div class="cal-toolbar">
+                <button class="cal-today-btn" onclick="goToCalendarToday()">今天</button>
+                <button class="cal-nav-btn" onclick="changeCalendarMonth(-1)" aria-label="上個月">
+                    <span data-icon="chevronLeft" data-icon-size="16"></span>
+                </button>
+                <button class="cal-nav-btn" onclick="changeCalendarMonth(1)" aria-label="下個月">
+                    <span data-icon="chevronRight" data-icon-size="16"></span>
+                </button>
+                <div class="cal-title" id="calendar-title">2026年9月</div>
+            </div>
+            <div class="cal-weekdays">
+                <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+            </div>
+            <div class="cal-grid" id="calendar-grid"></div>
+            <div class="cal-day-events">
+                <div class="cal-day-title" id="calendar-events-title">今日事件</div>
+                <div class="cal-day-list" id="calendar-events-list"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 底部導航欄（Liquid Glass Floating Capsule）
+         data-config 參數名與 ybouane/liquidglass 完全一致（refraction / chromAberration /
+         edgeHighlight / specular / fresnel / distortion / cornerRadius / zRadius /
+         opacity / saturation / tintStrength / brightness / shadowOpacity / shadowSpread /
+         shadowOffsetY），由 scripts/modules/liquidglass/liquidglass.js 讀取並換算成
+         backdrop-filter 的 SVG 折射濾鏡與 --lg-* 光學變數。
+         想調玻璃質感：改下面兩個 data-config 就得，唔需要動 CSS。 -->
+    <nav id="bottom-nav">
+        <div class="nav-capsule"
+             data-config='{"blurAmount":0.5,"refraction":0.72,"chromAberration":0.06,"edgeHighlight":0.09,"specular":0.38,"fresnel":1,"distortion":0.12,"cornerRadius":30,"zRadius":26,"opacity":1,"saturation":0.6,"tintStrength":0.06,"brightness":0.02,"shadowOpacity":0.28,"shadowSpread":18,"shadowOffsetY":6}'>
+            <!-- 拖拽時的流體拖尾（液滴），只係視覺層，pointer-events:none -->
+            <div class="nav-trail" id="nav-trail" aria-hidden="true"></div>
+            <div class="nav-indicator" id="nav-indicator"
+                 data-config='{"blurAmount":0.55,"refraction":0.8,"chromAberration":0.09,"edgeHighlight":0.14,"specular":0.5,"fresnel":1,"distortion":0.18,"cornerRadius":24,"zRadius":20,"opacity":1,"saturation":0.8,"tintStrength":0.08,"brightness":0.04,"shadowOpacity":0.22,"shadowSpread":14,"shadowOffsetY":5}'></div>
+
+            <!--
+                Tab 圖示規則（純內聯 SVG，唔用任何外部 Icon 庫，避免 CDN 載入失敗）：
+                · 統一規格：viewBox="0 0 24 24"、stroke-width="2"、
+                  stroke-linecap="round"、stroke-linejoin="round"、fill="none"。
+                · 每個 <svg> 都直接寫上 width="20" height="20" 屬性 + inline style，
+                  就算外部 CSS 未載入或被瀏覽器／Service Worker 快取成舊版本，圖示都一定畫得出來。
+                · stroke="currentColor" → 圖示顏色完全跟隨 .nav-item 的 color，
+                  「未選中 rgba(255,255,255,.6) / 選中 #FFFFFF」會同文字同步變化。
+                · 系統 UI 嚴禁 Emoji；內容層（假期／活動清單）才可用節日 Emoji。
+            -->
+
+            <button type="button" class="nav-item active" data-tab="page-weekly">
+                <span class="nav-icon">
+                    <!-- 週覽：layout-grid（4 個圓角正方形） -->
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                         style="width:20px;height:20px;display:block;flex:0 0 20px;"
+                         aria-hidden="true" focusable="false">
+                        <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
+                        <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" />
+                        <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
+                        <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" />
+                    </svg>
+                </span>
+                <span class="nav-label">週覽</span>
+            </button>
+            <button type="button" class="nav-item" data-tab="page-schedule">
+                <span class="nav-icon">
+                    <!-- 課表：book-open（開啟的書本） -->
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                         style="width:20px;height:20px;display:block;flex:0 0 20px;"
+                         aria-hidden="true" focusable="false">
+                        <path d="M12 7.2v13.3" />
+                        <path d="M2.8 18.4a1 1 0 0 1-1-1V4.2a1 1 0 0 1 1-1h5.4a4 4 0 0 1 3.8 2.5 4 4 0 0 1 3.8-2.5h5.4a1 1 0 0 1 1 1v13.2a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3Z" />
+                    </svg>
+                </span>
+                <span class="nav-label">課表</span>
+            </button>
+            <button type="button" class="nav-item" data-tab="page-realtime">
+                <span class="nav-icon">
+                    <!-- 倒數：timer（計時器） -->
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                         style="width:20px;height:20px;display:block;flex:0 0 20px;"
+                         aria-hidden="true" focusable="false">
+                        <path d="M10 2h4" />
+                        <path d="M12 14v-4" />
+                        <circle cx="12" cy="14" r="8" />
+                    </svg>
+                </span>
+                <span class="nav-label">倒數</span>
+            </button>
+            <button type="button" class="nav-item" data-tab="page-holidays">
+                <span class="nav-icon">
+                    <!-- 假期：palmtree（椰樹 / 度假） -->
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                         style="width:20px;height:20px;display:block;flex:0 0 20px;"
+                         aria-hidden="true" focusable="false">
+                        <path d="M10.9 21c.3-4.4 1.4-7.9 2.9-10.8" />
+                        <path d="M13.8 10.2C11.6 8.1 8.6 7.6 6.1 9" />
+                        <path d="M13.8 10.2C12.6 7.4 10.2 5.7 7.4 6.1" />
+                        <path d="M13.8 10.2c2.4-2 5.4-2 7.8 0" />
+                        <path d="M13.8 10.2c2-2.6 2.4-5.8 1.2-8.7" />
+                        <path d="M7.6 21h8" />
+                    </svg>
+                </span>
+                <span class="nav-label">假期</span>
+            </button>
+            <button type="button" class="nav-item" data-tab="page-calendar">
+                <span class="nav-icon">
+                    <!-- 月曆：calendar（標準月曆，含日期點） -->
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                         style="width:20px;height:20px;display:block;flex:0 0 20px;"
+                         aria-hidden="true" focusable="false">
+                        <rect x="3" y="4.5" width="18" height="16.5" rx="3" />
+                        <path d="M3 10h18M8 2.5v4M16 2.5v4" />
+                        <circle cx="8.4" cy="14.4" r=".9" />
+                        <circle cx="12" cy="14.4" r=".9" />
+                        <circle cx="15.6" cy="14.4" r=".9" />
+                        <circle cx="8.4" cy="18" r=".9" />
+                        <circle cx="12" cy="18" r=".9" />
+                        <circle cx="15.6" cy="18" r=".9" />
+                    </svg>
+                </span>
+                <span class="nav-label">月曆</span>
+            </button>
+        </div>
+    </nav>
+
+</div>
+
+<!-- ================= 用戶登入 / 個人中心（全螢幕玻璃質感 Modal） ================= -->
+<div class="profile-overlay" id="profile-overlay">
+    <div class="profile-panel">
+
+        <!-- 液態玻璃極光層 -->
+        <div class="profile-aurora" aria-hidden="true">
+            <span></span><span></span><span></span>
+        </div>
+
+        <header class="profile-topbar">
+            <button class="profile-close" id="profile-back" type="button"
+                    onclick="profileBackView()" aria-label="返回登入">
+                <span data-icon="chevronLeft" data-icon-size="17"></span>
+            </button>
+            <div class="profile-topbar__title" id="profile-topbar-title">登入</div>
+            <button class="profile-close" id="profile-close" type="button"
+                    onclick="closeProfilePanel()" aria-label="關閉">
+                <span data-icon="close" data-icon-size="15"></span>
+            </button>
+        </header>
+
+        <div class="profile-scroll auth-modal-body" id="profile-scroll">
+
+            <!-- ── 狀態 1：未登入（登入 / 註冊） ──────────────── -->
+            <section class="profile-view" id="profile-view-auth">
+                <div class="auth-hero">
+                    <div class="auth-hero__badge">
+                        <img class="app-logo" src="assets/images/app-logo.svg?v=2.5.0" alt="我的課表">
+                    </div>
+                    <h2 class="auth-hero__title" id="auth-hero-title">歡迎回來</h2>
+                    <p class="auth-hero__desc" id="auth-hero-desc">請輸入你的帳號資料以繼續。</p>
+                </div>
+
+                <!-- 登入 / 註冊 頁籤 -->
+                <div class="auth-tabs" role="tablist">
+                    <button class="auth-tab is-on" id="auth-tab-signin" type="button" role="tab"
+                            onclick="profileSetAuthMode('signin')">登入</button>
+                    <button class="auth-tab" id="auth-tab-signup" type="button" role="tab"
+                            onclick="profileSetAuthMode('signup')">註冊</button>
+                </div>
+
+                <div class="auth-alert" id="auth-alert">
+                    <span class="auth-alert__icon" id="auth-alert-icon" data-icon="alert" data-icon-size="15"></span><span id="auth-alert-text"></span>
+                </div>
+
+                <!-- Google 官方按鈕掛載點 -->
+                <div class="glass-card">
+                    <div class="google-slot" id="google-slot"></div>
+
+                    <div class="client-setup" id="client-setup">
+                        <div class="client-setup__title">啟用 Google 登入（設定一次即可）</div>
+                        <ol class="client-setup__steps">
+                            <li>Google Cloud Console → APIs &amp; Services → Credentials</li>
+                            <li>建立「OAuth 用戶端 ID」，類型選「網頁應用程式」</li>
+                            <li>「已授權的 JavaScript 來源」加入 <code id="client-origin">—</code></li>
+                            <li>把 Client ID 貼到下面並儲存</li>
+                        </ol>
+                        <input id="client-id-input" class="auth-input" type="text"
+                               placeholder="xxxxxxxx.apps.googleusercontent.com" autocomplete="off">
+                        <div style="display:flex;gap:8px;margin-top:10px;">
+                            <button class="btn-mini" type="button" onclick="profileSaveClientId(false)">儲存</button>
+                            <button class="btn-mini" type="button" onclick="profileSaveClientId(true)">清除</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="auth-divider">或使用 Email</div>
+
+                <!-- 真正的 <form>：Enter 鍵也能提交，並以 novalidate 交給自訂驗證 -->
+                <form class="glass-card auth-form" id="auth-form" novalidate>
+                    <label class="auth-field" id="field-name">
+                        <span class="auth-field__label">姓名 / 帳號</span>
+                        <input id="auth-name-input" class="auth-input" type="text" maxlength="20"
+                               placeholder="例如：陳小明" autocomplete="name">
+                    </label>
+
+                    <label class="auth-field">
+                        <span class="auth-field__label">Email</span>
+                        <input id="auth-email-input" class="auth-input" type="email" inputmode="email"
+                               placeholder="you@example.com" autocomplete="email">
+                    </label>
+
+                    <label class="auth-field">
+                        <span class="auth-field__label">密碼</span>
+                        <span class="auth-input-wrap">
+                            <input id="auth-password-input" class="auth-input" type="password"
+                                   placeholder="至少 6 個字元" autocomplete="current-password">
+                            <button class="auth-eye" type="button" tabindex="-1" aria-label="顯示密碼"
+                                    onclick="profileTogglePassword('auth-password-input', this)">
+                                <span data-icon="eye" data-icon-size="17"></span>
+                            </button>
+                        </span>
+                    </label>
+
+                    <label class="auth-field" id="field-confirm">
+                        <span class="auth-field__label">確認密碼</span>
+                        <span class="auth-input-wrap">
+                            <input id="auth-confirm-input" class="auth-input" type="password"
+                                   placeholder="再輸入一次" autocomplete="new-password">
+                            <button class="auth-eye" type="button" tabindex="-1" aria-label="顯示密碼"
+                                    onclick="profileTogglePassword('auth-confirm-input', this)">
+                                <span data-icon="eye" data-icon-size="17"></span>
+                            </button>
+                        </span>
+                    </label>
+
+                    <!-- 只有「註冊」才顯示頭像上傳 -->
+                    <div class="auth-field" id="field-avatar">
+                        <span class="auth-field__label">頭像（可選）</span>
+                        <div class="auth-upload">
+                            <div class="auth-upload__preview">
+                                <img id="profile-avatar-preview" alt="頭像預覽"
+                                     src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236a5cff'/%3E%3Cstop offset='0.5' stop-color='%23ff5f9e'/%3E%3Cstop offset='1' stop-color='%2300d4ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='200' fill='url(%23g)'/%3E%3C/svg%3E">
+                            </div>
+                            <div class="auth-upload__side">
+                                <div class="auth-upload__title">上傳一張照片</div>
+                                <div class="auth-upload__desc">支援 JPG / PNG，會自動壓縮。</div>
+                                <div class="auth-upload__actions">
+                                    <label class="btn-mini" for="profile-avatar-file">選擇圖片</label>
+                                    <input id="profile-avatar-file" type="file" accept="image/*" hidden>
+                                    <button class="btn-mini" type="button" onclick="profileClearAvatar()">移除</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="auth-field__row" id="field-remember">
+                        <label class="auth-check">
+                            <input type="checkbox" id="auth-remember" checked>
+                            <span>記住我</span>
+                        </label>
+                        <button class="auth-link" type="button" onclick="profileForgotPassword()">忘記密碼？</button>
+                    </div>
+
+                    <!-- type=submit：與 Enter 鍵共用同一條提交路徑（submit 事件統一 preventDefault） -->
+                    <button class="btn-primary-block" id="auth-submit" type="submit">登入</button>
+
+                    <p class="auth-switch" id="auth-switch">
+                        <span id="auth-switch-text">還沒有帳號？</span>
+                        <button class="auth-link auth-link--strong" type="button" id="auth-switch-btn"
+                                onclick="profileToggleAuthMode()">立即註冊</button>
+                    </p>
+                </form>
+
+                <p class="auth-footnote" id="auth-footnote">資料只保存在這部裝置上</p>
+            </section>
+
+            <!-- ── 狀態 2：註冊後必經的班級選擇（Onboarding） ─── -->
+            <section class="profile-view" id="profile-view-class">
+                <div class="auth-hero auth-hero--compact">
+                    <div class="auth-hero__badge">
+                        <img class="app-logo" src="assets/images/app-logo.svg?v=2.5.0" alt="我的課表">
+                    </div>
+                    <h2 class="auth-hero__title">選擇你的班級</h2>
+                    <p class="auth-hero__desc">課表會依照班級自動載入，之後可在個人中心隨時更改。</p>
+                </div>
+
+                <div class="auth-alert" id="class-alert">
+                    <span class="auth-alert__icon" id="class-alert-icon" data-icon="alert" data-icon-size="15"></span><span id="class-alert-text"></span>
+                </div>
+
+                <div class="class-picked" id="class-picked" style="display:none;">
+                    <span class="class-picked__icon" data-icon="checkCircle" data-icon-size="18"></span>
+                    <span class="class-picked__text">
+                        <span class="class-picked__name" id="class-picked-name">—</span>
+                        <span class="class-picked__desc" id="class-picked-desc"></span>
+                    </span>
+                </div>
+
+                <!-- 由 classes.json 動態生成（依 stage 分組，目前為初二級 6 班） -->
+                <div id="class-groups"></div>
+
+                <div class="glass-card" id="class-custom-card">
+                    <span class="auth-field__label">找不到你的班級？自行輸入</span>
+                    <div class="class-custom">
+                        <input id="class-custom-input" class="auth-input" type="text" maxlength="20"
+                               placeholder="例如：初二正 或 S2E" autocomplete="off">
+                        <button class="class-custom__go" type="button"
+                                onclick="profileApplyCustomClass()">套用</button>
+                    </div>
+                </div>
+
+                <button class="btn-primary-block" id="class-submit" type="button"
+                        onclick="profileConfirmClass()">進入我的課表</button>
+
+                <p class="auth-footnote">班級只決定載入哪一份課表</p>
+            </section>
+
+            <!-- ── 狀態 3：已登入（Bento Grid 個人主頁） ──────── -->
+            <section class="profile-view" id="profile-view-home">
+                <div class="bento-profile">
+
+                    <!-- 流光頭像框 -->
+                    <article class="bento-tile bento-tile--full">
+                        <div class="profile-hero">
+                            <div class="glow-avatar">
+                                <span class="glow-avatar__halo" aria-hidden="true"></span>
+                                <span class="glow-avatar__ring" aria-hidden="true"></span>
+                                <div class="glow-avatar__frame">
+                                    <img id="profile-hero-avatar" alt="用戶頭像"
+                                         src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236a5cff'/%3E%3Cstop offset='0.5' stop-color='%23ff5f9e'/%3E%3Cstop offset='1' stop-color='%2300d4ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='200' fill='url(%23g)'/%3E%3C/svg%3E">
+                                </div>
+                                <span class="glow-avatar__dot" aria-hidden="true"></span>
+                            </div>
+                            <div class="profile-hero__text">
+                                <div class="profile-hero__name"><span id="profile-hero-name">—</span></div>
+                                <div class="profile-hero__meta" id="profile-hero-meta"></div>
+                                <div class="profile-hero__tags">
+                                    <span class="tag-pill" id="profile-provider-pill">已登入</span>
+                                    <span class="class-badge" id="profile-class-pill">—</span>
+                                    <button class="tag-pill tag-pill--btn" type="button"
+                                            onclick="profileOpenClassPicker()">更改班級</button>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- 下個假期：全寬 Banner
+                         左：節日 Emoji 徽章 + 大字標題（下個假期：中秋節翌日）
+                         右：高亮倒數天數（還有 N 天／今天開始）
+                         內容全部由 renderProfileNextHoliday() 依 holidaysData 填入 -->
+                    <article class="bento-tile bento-tile--full holiday-banner">
+                        <div class="holiday-banner__main">
+                            <span class="holiday-banner__icon" id="stat-holiday-icon" aria-hidden="true"></span>
+                            <div class="holiday-banner__body">
+                                <div class="holiday-banner__title">
+                                    <span class="holiday-banner__title-label">下個假期：</span><span class="holiday-banner__name" id="stat-holiday">—</span>
+                                </div>
+                                <div class="holiday-banner__range" id="stat-holiday-date"></div>
+                            </div>
+                        </div>
+                        <div class="holiday-banner__countdown" id="stat-holiday-countdown">
+                            <span class="holiday-banner__lead" id="stat-holiday-lead"></span>
+                            <span class="holiday-banner__num" id="stat-holiday-days">—</span>
+                            <span class="holiday-banner__unit" id="stat-holiday-unit"></span>
+                        </div>
+                    </article>
+
+                    <!-- 專案展示牆 -->
+                    <article class="bento-tile bento-tile--full">
+                        <div class="bento-tile__eyebrow">專案展示牆</div>
+                        <!--
+                            圖示規則：一律以底部 TabBar 的 SVG 為唯一標準，
+                            四個 tile 必須同 TabBar 對應分頁用同一顆圖示（名字對應 icons.js 的 APP_ICON_PATHS）。
+                            ⚠ 唔可以用「意思相近」嘅其他圖示（例如週覽用 chart 柱狀圖、假期用 umbrella 雨傘），
+                            會同 TabBar 撞樣。改動前請先對照 index.html 嘅 #bottom-nav 區塊。
+                        -->
+                        <div class="wall">
+                            <!-- 週覽 → TabBar「週覽」：layoutGrid（4 個圓角正方形） -->
+                            <button class="wall-tile" type="button" onclick="profileGoTab('page-weekly')">
+                                <span class="wall-tile__icon" data-icon="layoutGrid" data-icon-size="17"></span>
+                                <span class="wall-tile__name">週覽總表</span>
+                                <span class="wall-tile__desc">一週課堂全景</span>
+                            </button>
+                            <!-- 課表 → TabBar「課表」：bookOpen（開啟的書本） -->
+                            <button class="wall-tile" type="button" onclick="profileGoTab('page-schedule')">
+                                <span class="wall-tile__icon" data-icon="bookOpen" data-icon-size="17"></span>
+                                <span class="wall-tile__name">課表檢視</span>
+                                <span class="wall-tile__desc">今日 / 明日課堂</span>
+                            </button>
+                            <!-- 月曆 → TabBar「月曆」：calendarDots（月曆 + 日期點） -->
+                            <button class="wall-tile" type="button" onclick="profileGoTab('page-calendar')">
+                                <span class="wall-tile__icon" data-icon="calendarDots" data-icon-size="17"></span>
+                                <span class="wall-tile__name">月曆行程</span>
+                                <span class="wall-tile__desc">自訂事件與任務</span>
+                            </button>
+                            <!-- 假期 → TabBar「假期」：palmtree（椰樹；嚴禁 umbrella 雨傘） -->
+                            <button class="wall-tile" type="button" onclick="profileGoTab('page-holidays')">
+                                <span class="wall-tile__icon" data-icon="palmtree" data-icon-size="17"></span>
+                                <span class="wall-tile__name">假期倒數</span>
+                                <span class="wall-tile__desc">下個連假還有多久</span>
+                            </button>
+                        </div>
+                    </article>
+
+                    <!-- 帳號操作 -->
+                    <article class="bento-tile bento-tile--full">
+                        <div class="bento-tile__eyebrow">帳號管理</div>
+                        <div class="action-stack">
+                            <button class="btn-ghost-block" type="button" onclick="openProfileAccounts()">
+                                切換帳號
+                            </button>
+                            <button class="btn-danger-block" type="button" onclick="profileLogout()">
+                                登出
+                            </button>
+                        </div>
+                    </article>
+                </div>
+
+                <!-- 連點版本號 5 下 / 長按 → 進入開發者模式 -->
+                <p class="profile-signature">
+                    我的課表 · 本機帳號系統 ·
+                    <span class="profile-version" id="app-version" title="連續點擊 5 下進入開發者模式">v2.3.0</span>
+                </p>
+            </section>
+
+            <!-- ── 狀態 4：切換帳號清單 ──────────────────────── -->
+            <section class="profile-view" id="profile-view-accounts">
+                <div class="accounts-head">
+                    <div class="accounts-head__title">選擇帳號</div>
+                    <div class="accounts-head__desc">切換後課表與統計會同步更新</div>
+                </div>
+                <div class="accounts-list" id="profile-accounts-list"></div>
+                <p class="auth-footnote">資料只保存在這部裝置，點右側按鈕可移除帳號。</p>
+            </section>
+
+        </div>
+    </div>
+</div>
+
+<!-- Toast 放在 overlay 之外：登入成功關閉彈窗後仍可顯示提示 -->
+<div class="profile-toast" id="profile-toast" role="status" aria-live="polite"></div>
+
+<!-- 新增事件彈窗（Google Calendar 風格，喺 .phone-mockup 外面） -->
+<div class="gcal-modal-overlay" id="add-calendar-event-modal" style="display: none;" onclick="closeAddCalendarEventModal(event)">
+    <div class="gcal-modal" onclick="event.stopPropagation()">
+
+        <div class="gcal-modal-header">
+            <div class="gcal-drag-handle"></div>
+            <button class="gcal-close-btn" onclick="closeAddCalendarEventModal()" aria-label="關閉">
+                <span data-icon="close" data-icon-size="15"></span>
+            </button>
+        </div>
+
+        <div class="gcal-title-section">
+            <input type="text" id="calendar-event-title" class="gcal-title-input" placeholder="新增標題與時間">
+            <div class="gcal-title-underline"></div>
+        </div>
+
+        <div class="gcal-type-pills">
+            <button class="gcal-pill active" data-type="exam" onclick="selectEventType('exam')">
+                <span class="gcal-pill-icon" data-icon="clipboard" data-icon-size="15"></span> 事件
+            </button>
+            <button class="gcal-pill" data-type="homework" onclick="selectEventType('homework')">
+                <span class="gcal-pill-icon" data-icon="book" data-icon-size="15"></span> 任務
+            </button>
+        </div>
+
+        <div class="gcal-options-list">
+
+            <div class="gcal-option-item">
+                <div class="gcal-option-icon" data-icon="clock" data-icon-size="18"></div>
+                <div class="gcal-option-content">
+                    <input type="date" id="calendar-event-date" class="gcal-date-input">
+                    <div class="gcal-option-subtitle" id="gcal-date-display">選擇日期</div>
+                </div>
+                <button class="gcal-add-time-btn">Add time</button>
+            </div>
+
+            <div class="gcal-option-item gcal-option-disabled">
+                <div class="gcal-option-icon" data-icon="users" data-icon-size="18"></div>
+                <div class="gcal-option-content">
+                    <div class="gcal-option-title">新增參與者</div>
+                </div>
+            </div>
+
+            <div class="gcal-option-item gcal-option-disabled">
+                <div class="gcal-option-icon" data-icon="video" data-icon-size="18"></div>
+                <div class="gcal-option-content">
+                    <div class="gcal-option-title">新增視訊會議</div>
+                </div>
+            </div>
+
+            <div class="gcal-option-item gcal-option-disabled">
+                <div class="gcal-option-icon" data-icon="pin" data-icon-size="18"></div>
+                <div class="gcal-option-content">
+                    <div class="gcal-option-title">新增地點</div>
+                </div>
+            </div>
+
+            <div class="gcal-option-item gcal-option-disabled">
+                <div class="gcal-option-icon" data-icon="alignLeft" data-icon-size="18"></div>
+                <div class="gcal-option-content">
+                    <div class="gcal-option-title">新增描述或附件</div>
+                </div>
+            </div>
+
+            <div class="gcal-option-item gcal-option-disabled">
+                <div class="gcal-option-icon" data-icon="calendar" data-icon-size="18"></div>
+                <div class="gcal-option-content">
+                    <div class="gcal-option-title">我的課表</div>
+                    <div class="gcal-option-subtitle">預設提醒：準時</div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="gcal-footer">
+            <button class="gcal-more-btn">更多選項</button>
+            <button class="gcal-save-btn" onclick="saveCalendarEvent()">儲存</button>
+        </div>
+
+        <input type="hidden" id="calendar-event-type" value="exam">
+
+    </div>
+</div>
+
+<!-- ================= 開發者數據管理中心（Developer / Admin Dashboard） =================
+     入口：連點版本號 5 下 / 長按版本號 / Ctrl + Shift + D
+     平時完全隱藏，唔會影響正常使用 -->
+<div class="dev-overlay" id="dev-overlay" aria-hidden="true" role="dialog" aria-label="開發者數據管理中心">
+    <div class="dev-shell">
+
+        <div class="dev-top">
+            <div class="dev-brand">
+                <span data-icon="sliders" data-icon-size="18"></span> 開發者數據管理中心
+                <span class="dev-brand__badge" id="dev-version-badge">DB</span>
+            </div>
+            <div class="dev-top__spacer"></div>
+            <div class="dev-top__actions">
+                <button type="button" class="dev-btn" onclick="devExportAll()" title="把全部集合匯出成 JSON 檔">
+                    <span data-icon="download" data-icon-size="15"></span> 匯出 JSON
+                </button>
+                <button type="button" class="dev-btn" onclick="devImportClick()" title="由 JSON 檔匯入資料">
+                    <span data-icon="upload" data-icon-size="15"></span> 匯入 JSON
+                </button>
+                <button type="button" class="dev-btn dev-btn--danger" onclick="devResetAll()" title="清除所有本機覆寫，回到預設 JSON">
+                    <span data-icon="refresh" data-icon-size="15"></span> 重置全部
+                </button>
+                <button type="button" class="dev-btn" onclick="devDisable()" title="關閉開發者模式">
+                    <span data-icon="lock" data-icon-size="15"></span> 鎖定
+                </button>
+                <button type="button" class="dev-btn dev-btn--ghost dev-btn--icon" onclick="devClose()" aria-label="關閉">
+                    <span data-icon="close" data-icon-size="15"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="dev-tabs" id="dev-tabs"></div>
+
+        <div class="dev-main" id="dev-body"></div>
+
+        <div class="dev-foot">
+            <div class="dev-status" id="dev-status"></div>
+            <button type="button" class="dev-btn" id="dev-discard" onclick="devDiscard()">
+                <span data-icon="undo" data-icon-size="15"></span> 放棄變更
+            </button>
+            <button type="button" class="dev-btn dev-btn--primary" id="dev-save" onclick="devSaveAll()" disabled>
+                <span data-icon="save" data-icon-size="15"></span> 保存並套用
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<!-- 開發者模式開啟後的浮動入口 -->
+<button type="button" class="dev-fab" id="dev-fab" aria-label="開啟開發者面板">
+    <span data-icon="sliders" data-icon-size="20"></span>
+</button>
+
+<!-- 提示訊息 -->
+<div class="dev-toast" id="dev-toast" role="status" aria-live="polite"></div>
+
+<!-- 匯入用的隱藏檔案輸入 -->
+<input type="file" id="dev-import-file" accept="application/json,.json" hidden>
+
+<script src="scripts/utils/storage.js?v=2.5.0"></script>
+<!-- 統一 SVG 圖示系統：全站嚴禁 Emoji，所有圖示由此產生 -->
+<script src="scripts/utils/icons.js?v=2.5.0"></script>
+<!-- DataManager：App 唯一資料存取層（localStorage 優先 → 靜態 JSON 後備） -->
+<script src="scripts/utils/db.js?v=2.5.0"></script>
+<script src="scripts/config/auth-config.js?v=2.5.0"></script>
+<script src="scripts/modules/theme/theme.js?v=2.5.0"></script>
+<script src="scripts/modules/weekly/weekly.js?v=2.5.0"></script>
+<script src="scripts/modules/holidays/holidays.js?v=2.5.0"></script>
+<script src="scripts/modules/animations/animations.js?v=2.5.0"></script>
+<script src="scripts/modules/expand/expand.js?v=2.5.0"></script>
+<script src="scripts/modules/calendar/calendar.js?v=2.5.0"></script>
+<script src="scripts/modules/auth/auth.js?v=2.5.0"></script>
+<script src="scripts/modules/profile/profile.js?v=2.5.0"></script>
+<script src="scripts/modules/devtools/devtools.js?v=2.5.0"></script>
+<!-- Liquid Glass 引擎：以 backdrop-filter + SVG 折射濾鏡實作，離線可用、無 CDN 依賴 -->
+<script src="scripts/modules/liquidglass/liquidglass.js?v=2.5.0"></script>
+<script src="scripts/main.js?v=2.5.0"></script>
+
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js?v=2.5.0')
+            .then((registration) => {
+                console.log('Service Worker 註冊成功:', registration.scope);
+                // 主動檢查有無新版本，避免一直派舊快取
+                registration.update();
+            })
+            .catch((error) => console.log('Service Worker 註冊失敗:', error));
+    });
+}
+</script>
+
+</body>
+</html>

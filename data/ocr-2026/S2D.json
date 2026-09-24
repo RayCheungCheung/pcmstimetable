@@ -1,0 +1,60 @@
+{
+  "S2D": {
+    "className": "初二善",
+    "homeroomTeacher": "廖鳳儀",
+    "schedule": {
+      "mon": [
+        { "period": 1, "subject": "留空課程", "teacher": "廖鳳儀" },
+        { "period": 2, "subject": "周會", "teacher": "廖鳳儀" },
+        { "period": 3, "subject": "品德公民", "teacher": "廖鳳儀" },
+        { "period": 4, "subject": "數學", "teacher": "廖鳳儀" },
+        { "period": 5, "subject": "中文2", "teacher": "鄭炳弟團·鄭炳弟團" },
+        { "period": 6, "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 7, "subject": "分組英文", "teacher": "進階英語" }
+      ],
+      "tue": [
+        { "period": 1, "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 2, "subject": "中文", "teacher": "劉家晴" },
+        { "period": 3, "subject": "中文", "teacher": "劉家晴" },
+        { "period": 4, "subject": "地理", "teacher": "顧俐俐" },
+        { "period": 5, "subject": "數學_幾", "teacher": "譚鴻生" },
+        { "period": 6, "subject": "品德公民", "teacher": "陳健鴻" },
+        { "period": 7, "subject": "數學", "teacher": "廖鳳儀" }
+      ],
+      "wed": [
+        { "period": 1, "subject": "中文", "teacher": "劉家晴" },
+        { "period": 2, "subject": "數學AI", "teacher": "張匯民" },
+        { "period": 3, "subject": "數學AI", "teacher": "張匯民" },
+        { "period": 4, "subject": "地理", "teacher": "顧俐俐" },
+        { "period": 5, "subject": "英語R+S", "teacher": "梁詠詩·林曦瞳" },
+        { "period": 6, "subject": "體育與健康", "teacher": "容毅燊·陳詠琛" },
+        { "period": 7, "subject": "體育與健康", "teacher": "容毅燊·陳詠琛" }
+      ],
+      "thu": [
+        { "period": 1, "subject": "分組藝術_視", "teacher": "進階藝術" },
+        { "period": 2, "subject": "分組藝術_視", "teacher": "進階藝術" },
+        { "period": 3, "subject": "設計科學", "teacher": "何城坤·盧永強" },
+        { "period": 4, "subject": "設計科學", "teacher": "何城坤·盧永強" },
+        { "period": 5, "subject": "其他設科", "teacher": "何城坤·李武鴻" },
+        { "period": 6, "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 7, "subject": "中文", "teacher": "劉家晴" }
+      ],
+      "fri": [
+        { "period": 1, "subject": "聖經", "teacher": "毛劍賢" },
+        { "period": 2, "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 3, "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 4, "subject": "地理知識", "teacher": "顧俐俐" },
+        { "period": 5, "subject": "數學", "teacher": "廖鳳儀" },
+        { "period": 6, "subject": "中文", "teacher": "劉家晴" },
+        { "period": 7, "subject": "分組英文", "teacher": "進階英語" }
+      ],
+      "sat": [
+        { "period": 1, "subject": "留空課程", "teacher": "廖鳳儀" },
+        { "period": 2, "subject": "分組資訊科技", "teacher": "進階資訊" },
+        { "period": 3, "subject": "中文", "teacher": "劉家晴" },
+        { "period": 4, "subject": "數學_幾", "teacher": "譚鴻生" },
+        { "period": 5, "subject": "分組英文", "teacher": "進階英語" }
+      ]
+    }
+  }
+}

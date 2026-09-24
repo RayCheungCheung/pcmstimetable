@@ -1,0 +1,590 @@
+/* ================= 月曆工具列 ================= */
+.cal-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: var(--spacing-sm);
+    padding: 0 2px;
+}
+
+.cal-today-btn {
+    background-color: var(--card-purple);
+    border: none;
+    border-radius: 16px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-dark);
+    cursor: pointer;
+    font-family: var(--font-family);
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-shadow: var(--card-shadow);
+    border: var(--card-border);
+}
+
+.cal-nav-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-size: 18px;
+    font-weight: 900;
+    cursor: pointer;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.cal-title {
+    flex-grow: 1;
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+
+/* ================= 月曆格 ================= */
+.cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 900;
+    color: var(--text-muted);
+    padding: 4px 0;
+    border-bottom: 1px solid var(--divider-color);
+    margin-bottom: 3px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 1px;
+    background-color: var(--divider-color);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: var(--spacing-sm);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.cal-cell {
+    background-color: var(--card-purple);
+    min-height: 44px;
+    padding: 2px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.cal-cell:active {
+    background-color: var(--card-purple-dark);
+}
+
+.cal-cell.other-month { opacity: 0.3; }
+
+.cal-cell.today .cal-num {
+    background-color: var(--now-red);
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cal-num {
+    font-size: 10px;
+    font-weight: 900;
+    color: var(--text-dark);
+    margin-bottom: 1px;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.cal-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--now-red);
+    z-index: 2;
+}
+
+.cal-events {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.cal-event {
+    font-size: 7px;
+    font-weight: 700;
+    color: white;
+    padding: 1px 2px;
+    border-radius: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    box-sizing: border-box;
+}
+
+.cal-event.holiday { background-color: var(--coming-green); }
+.cal-event.exam { background-color: var(--now-red); }
+.cal-event.homework { background-color: #ff9500; }
+.cal-event.activity { background-color: #007aff; }
+
+.cal-event.more {
+    background-color: transparent;
+    color: var(--text-muted);
+    font-size: 6px;
+    padding: 0;
+}
+
+/* ================= 當日事件列表 ================= */
+.cal-day-events {
+    background-color: var(--card-purple);
+    border-radius: 16px;
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    width: 100%;
+    box-sizing: border-box;
+    box-shadow: var(--card-shadow);
+    border: var(--card-border);
+}
+
+.cal-day-title {
+    font-size: 13px;
+    font-weight: 900;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+}
+
+.cal-day-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cal-event-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: rgba(128, 128, 128, 0.08);
+    border-radius: 12px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.cal-event-item.exam { background-color: rgba(255, 59, 48, 0.12); }
+.cal-event-item.holiday { background-color: rgba(52, 199, 89, 0.12); }
+.cal-event-item.homework { background-color: rgba(255, 149, 0, 0.12); }
+.cal-event-item.activity { background-color: rgba(0, 122, 255, 0.12); }
+
+.cal-event-emoji {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.cal-event-info {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.cal-event-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+
+.cal-event-type {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.cal-event-note {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.85;
+}
+
+/* iOS 風格刪除按鈕 */
+.cal-event-delete {
+    background: none;
+    border: none;
+    outline: none;
+    padding: 0;
+    margin: 0;
+    margin-left: auto;
+    box-shadow: none;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background-color: rgba(120, 120, 128, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: rgba(60, 60, 67, 0.6);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    transition: background-color 0.2s ease, transform 0.15s ease, color 0.2s ease;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.cal-event-delete:active {
+    background-color: rgba(120, 120, 128, 0.25);
+    color: rgba(60, 60, 67, 0.85);
+    transform: scale(0.92);
+}
+
+:root[data-theme="dark"] .cal-event-delete,
+:root:not([data-theme]) .cal-event-delete {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.6);
+}
+
+:root[data-theme="dark"] .cal-event-delete:active,
+:root:not([data-theme]) .cal-event-delete:active {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.cal-event-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 8px;
+    font-weight: 600;
+}
+
+/* ================= Google Calendar 風格彈窗 ================= */
+.gcal-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+    animation: gcalFadeIn 0.2s ease;
+}
+
+.gcal-modal-overlay.active {
+    display: flex;
+}
+
+@keyframes gcalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.gcal-modal {
+    background-color: var(--bg-color);
+    border-radius: 24px;
+    width: 100%;
+    max-width: 360px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: 0 0 16px 0;
+    animation: gcalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes gcalSlideUp {
+    from { opacity: 0; transform: translateY(30px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.gcal-modal-header {
+    position: relative;
+    padding: 12px 16px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 20px;
+}
+
+.gcal-drag-handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--text-muted);
+    opacity: 0.4;
+}
+
+.gcal-close-btn {
+    position: absolute;
+    right: 12px;
+    top: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-size: 16px;
+    font-weight: 400;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.gcal-close-btn:active {
+    background-color: rgba(128, 128, 128, 0.2);
+}
+
+.gcal-title-section {
+    padding: 16px 20px 0;
+}
+
+.gcal-title-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-main);
+    font-family: var(--font-family);
+    padding: 8px 0;
+    box-sizing: border-box;
+}
+
+.gcal-title-input::placeholder {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.gcal-title-underline {
+    height: 2px;
+    background-color: var(--primary-color);
+    border-radius: 1px;
+    margin-top: 2px;
+}
+
+.gcal-type-pills {
+    display: flex;
+    gap: 8px;
+    padding: 16px 20px 12px;
+}
+
+.gcal-pill {
+    background-color: transparent;
+    border: 1px solid var(--divider-color);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+    cursor: pointer;
+    font-family: var(--font-family);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.gcal-pill .gcal-pill-icon {
+    font-size: 14px;
+}
+
+.gcal-pill.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.gcal-pill:active {
+    transform: scale(0.96);
+}
+
+.gcal-options-list {
+    padding: 0 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.gcal-option-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 12px;
+    border-radius: 12px;
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.gcal-option-item:not(.gcal-option-disabled):active {
+    background-color: rgba(128, 128, 128, 0.1);
+}
+
+.gcal-option-disabled {
+    cursor: default;
+    opacity: 0.5;
+}
+
+.gcal-option-icon {
+    width: 24px;
+    font-size: 18px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.gcal-option-content {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.gcal-option-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gcal-option-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gcal-date-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+    font-family: var(--font-family);
+    padding: 0;
+    width: 100%;
+    cursor: pointer;
+}
+
+.gcal-date-input::-webkit-calendar-picker-indicator {
+    filter: invert(0.5);
+    cursor: pointer;
+}
+
+:root[data-theme="light"] .gcal-date-input::-webkit-calendar-picker-indicator {
+    filter: none;
+}
+
+.gcal-add-time-btn {
+    background-color: transparent;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+    border-radius: 16px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: var(--font-family);
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background-color 0.2s;
+}
+
+.gcal-add-time-btn:active {
+    background-color: rgba(10, 132, 255, 0.15);
+}
+
+.gcal-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px 0;
+    margin-top: 8px;
+}
+
+.gcal-more-btn {
+    background: transparent;
+    border: none;
+    color: var(--primary-color);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: var(--font-family);
+    padding: 8px 12px;
+    border-radius: 18px;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.gcal-more-btn:active {
+    background-color: rgba(10, 132, 255, 0.15);
+}
+
+.gcal-save-btn {
+    background-color: var(--primary-color);
+    border: none;
+    border-radius: 20px;
+    padding: 10px 24px;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: var(--font-family);
+    transition: transform 0.2s, opacity 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);
+}
+
+.gcal-save-btn:active {
+    transform: scale(0.96);
+    opacity: 0.9;
+}

@@ -1,0 +1,28 @@
+/* ================= 深色主題色票 =================
+   ⚠ 選擇器一定要保留 :root:not([data-theme])：
+   首次載入時 theme.js 尚未執行，<html> 上完全沒有 data-theme 屬性，
+   若只寫 [data-theme="dark"]，首屏會掉回瀏覽器預設白底（白閃一下）。
+   ⚠ 顏色係「成對」設計，改動時必須成對改：
+   卡面（--card-purple / --card-purple-dark / --btn-bg / --bg-secondary）
+   ↔ 卡面文字（--text-dark）。
+   深色主題卡面改為深板岩藍之後，--text-dark 必須同步翻成純白，
+   否則卡片上會出現「深字疊深底」（科目名、老師名、標題全部隱形）。 */
+:root[data-theme="dark"], :root:not([data-theme]) {
+    --bg-color: #0f1117;                 /* 主背景：深藍黑（原本 #1a1a1a 係中性灰，容易顯得死灰） */
+    --bg-secondary: #1e293b;             /* 次級面板底：深板岩藍 */
+    --text-main: #ffffff;                /* 主文字（疊喺 --bg-color 上）：純白 */
+    --text-dark: #ffffff;                /* 卡面文字：卡面已轉深色，必須翻白（對比 ≈ 16:1） */
+    --text-muted: #94a3b8;               /* 次要文字：淺灰藍（對比 ≈ 6.5:1，仍達 AA） */
+    --card-purple: #1e293b;              /* 卡片底：深板岩藍 */
+    --card-purple-dark: #172033;         /* 卡片底（裝飾／按下用） */
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    --card-border: 1px solid rgba(255, 255, 255, 0.12);
+    --btn-bg: #283042;                   /* 按鈕／節次欄底：比卡片再深一階，形成層次 */
+    --btn-text: #ffffff;
+    --now-red: #ff3b30;
+    --now-red-dark: #d32f2f;
+    --coming-green: #34c759;
+    --coming-green-dark: #2e7d32;
+    --primary-color: #0A84FF;
+    --divider-color: rgba(255, 255, 255, 0.12);
+}

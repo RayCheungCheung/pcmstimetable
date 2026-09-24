@@ -1,0 +1,14 @@
+{
+    "_note": "班級清單（培正初二級 6 班，代號 S2A ~ S2F）。schedule 指向該班專屬課表路徑；填 null 表示未有專屬檔案，系統會自動退回 defaultSchedule。schemaVersion 一旦改動，App 會自動清掉 localStorage 內殘留的舊班級快取（auth_classes_cache）。",
+    "schemaVersion": 2,
+    "defaultClassId": "junior2-zheng",
+    "defaultSchedule": "data/schedule.json",
+    "classes": [
+        { "id": "junior2-xin",   "name": "初二信", "code": "S2A", "stage": "初中", "schedule": "data/schedules/junior2-xin.json" },
+        { "id": "junior2-wang",  "name": "初二望", "code": "S2B", "stage": "初中", "schedule": "data/schedules/junior2-wang.json" },
+        { "id": "junior2-ai",    "name": "初二愛", "code": "S2C", "stage": "初中", "schedule": "data/schedules/junior2-ai.json" },
+        { "id": "junior2-shan",  "name": "初二善", "code": "S2D", "stage": "初中", "schedule": "data/schedules/junior2-shan.json" },
+        { "id": "junior2-zheng", "name": "初二正", "code": "S2E", "stage": "初中", "schedule": "data/schedules/junior2-zheng.json" },
+        { "id": "junior2-guang", "name": "初二光", "code": "S2F", "stage": "初中", "schedule": "data/schedules/junior2-guang.json" }
+    ]
+}

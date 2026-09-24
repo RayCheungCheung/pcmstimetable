@@ -1,0 +1,538 @@
+/* ================= 基礎設定 ================= */
+:root {
+    --font-family: -apple-system, BlinkMacSystemFont, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+    --header-height: 100px;
+    --nav-height: 80px;
+    --spacing-xs: 4px;
+    --spacing-sm: 10px;
+    --spacing-md: 14px;
+    --spacing-lg: 18px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: #000000;
+    color: var(--text-main);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 20px;
+    overflow: hidden;
+}
+
+/* ================= 手機外框 ================= */
+.phone-mockup {
+    width: 100%;
+    max-width: 393px;
+    height: 852px;
+    background-color: var(--bg-color);
+    border-radius: 55px;
+    box-shadow: 0 0 0 12px #2c2c2e, 0 0 0 14px #1c1c1e, 0 30px 60px rgba(0,0,0,0.8);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    margin: 0 auto;
+    transition: background-color 0.3s ease;
+}
+
+.dynamic-island {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 35px;
+    background-color: #000;
+    border-radius: 20px;
+    z-index: 1000;
+}
+
+.status-bar {
+    height: 45px;
+    width: 100%;
+    flex-shrink: 0;
+}
+
+/* ================= 頂部 Header =================
+   佈局：.phone-mockup 係 flex-direction: column，
+   #app-header 與 #app-content 係正常流式（flow）排列的兄弟節點，
+   兩者都不用 position: absolute，所以不會互相疊住、也不會遮擋點擊。 */
+#app-header {
+    position: relative;      /* 建立層級，內容捲動時 Header 永遠在上面 */
+    z-index: 100;
+    flex-shrink: 0;
+    padding: 0 var(--spacing-md) var(--spacing-sm);
+    background-color: var(--bg-color);
+    transition: background-color 0.3s ease;
+}
+
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    /* 44pt 觸控列：符合 Apple HIG，亦令標題與右側按鈕不會互相擠壓 */
+    min-height: 44px;
+    margin-bottom: var(--spacing-sm);
+    padding-right: 2px;
+}
+
+/* 品牌列：Logo + 標題（Logo 統一用 assets/images/app-logo.svg） */
+.header-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+
+.header-logo {
+    display: block;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 9px;
+    object-fit: contain;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.header-logo:active {
+    transform: scale(0.92);
+}
+
+.header-title {
+    font-size: 19px;
+    font-weight: 900;
+    color: var(--text-main);
+    line-height: 1;
+    transition: color 0.3s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.theme-toggle-corner {
+    /* 44×44 觸控熱區（Apple HIG），確保 100% 點得到 */
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: transparent;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    outline: none;
+    transition: transform 0.25s ease;
+}
+
+/* 視覺圓底只有 36px，但整顆 44px 都是可點區域 */
+.theme-toggle-corner::before {
+    content: '';
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: transparent;
+    pointer-events: none;
+    transition: background-color 0.25s ease;
+}
+
+.theme-toggle-corner:hover::before {
+    background-color: rgba(128, 128, 128, 0.15);
+}
+
+.theme-toggle-corner:active {
+    transform: scale(0.9);
+}
+
+.theme-toggle-corner:active::before {
+    background-color: rgba(128, 128, 128, 0.2);
+}
+
+.theme-toggle-corner .theme-icon {
+    display: inline-block;
+    position: relative;      /* 疊在 ::before 圓底之上 */
+    z-index: 1;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+}
+
+.theme-toggle-corner.switching .theme-icon {
+    transform: rotate(180deg) scale(0.5);
+    opacity: 0;
+}
+
+/* ================= 主內容區域 ================= */
+#app-content {
+    flex: 1;
+    /* Header 自身已有 10px 底部內距，這裡只補 4px，
+       令搜尋欄與第一張卡片保持緊湊（原本 12px 會多出一截空白） */
+    margin-top: 4px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    padding-bottom: 20px;
+    -webkit-overflow-scrolling: touch;
+}
+
+#app-content::-webkit-scrollbar {
+    display: none;
+}
+
+.page {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+}
+
+.page.active {
+    display: flex;
+    animation: pageFadeIn 0.25s ease;
+}
+
+@keyframes pageFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ================= 底部導航欄（Apple Liquid Glass Floating Capsule） ================= */
+#bottom-nav {
+    position: relative;
+    padding: 8px 12px 12px;
+    /* Home Indicator 安全區域：瀏海機 34px、舊機 0；最少 16px，
+       避免之前 12px + 34px = 46px 造成底部一大塊空白 */
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    flex-shrink: 0;
+    z-index: 100;
+    background-color: transparent;
+}
+
+/* 版面定位留在這裡；玻璃光學塗裝（折射／邊緣光／色散／陰影）見 liquidglass.css */
+.nav-capsule {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    height: 60px;
+    border-radius: 30px;
+    overflow: hidden;
+    /* 建立 stacking context：令玻璃嘅 mix-blend-mode 只同膠囊內部混合，
+       唔會撈到背後頁面內容，同時令滑塊／拖尾／圖示嘅 z-index 有意義 */
+    isolation: isolate;
+    /* 垂直捲動保留給頁面；水平手勢交給滑塊拖拽 */
+    touch-action: pan-y;
+    /* 拖拽／點擊時不會選取到文字，亦不會觸發原生圖片拖曳，
+       確保 Tap 一定產生乾淨的 click 事件給 .nav-item */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- 滑塊指示器（Liquid Glass Lens） ----------
+   這裡只管幾何與層級；玻璃塗裝（邊緣光／色散／鏡面／陰影）見 liquidglass.css。
+   位置由 JS 彈簧（rAF）逐格驅動，動畫期間 JS 會臨時設 transition:none，
+   下面這條 transition 只係「彈簧未啟動時」嘅保底平滑。 */
+.nav-indicator {
+    /* 一定要係絕對定位圖層，唔可以參與 flex 排版：
+       一旦變成一般 flex 子項，就會佔走一格寬度，令 5 個 Tab 被推向右（左邊多一格空白），
+       而且 top 會由「距離膠囊頂」變成「相對靜態位置再偏移」，滑塊即刻垂直走位。 */
+    position: absolute;
+    /* 垂直居中用 auto margin 平分剩餘空間。
+       唔用 top:50% + translateY(-50%)，因為 JS 每格都會覆寫 transform
+       做 translateX / scaleX 液態形變，會蓋掉 translateY。 */
+    top: 0;
+    bottom: 0;
+    left: 0;
+    margin-top: auto;
+    margin-bottom: auto;
+    width: 60px;
+    /* 膠囊 60px 高、上下各留 5px → 48px（= 高度一半 24px 圓角，剛好成藥丸形）。
+       用 calc 而唔寫死 48px，膠囊日後改高矮時滑塊自動跟隨。 */
+    height: calc(100% - 10px);
+    border-radius: 24px;
+    transform: translateX(0);
+    transform-origin: 50% 50%;
+    transition: transform 0.5s cubic-bezier(0.22, 1.15, 0.36, 1),
+                width 0.5s cubic-bezier(0.22, 1.15, 0.36, 1);
+    z-index: 1;
+    pointer-events: none;
+    overflow: hidden;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    will-change: transform, width;
+    isolation: isolate;
+}
+
+.nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;                      /* 圖示與文字間距 4px */
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px 0;
+    transition: color 0.25s ease, transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    font-family: var(--font-family);
+    /* 未選中：60% 白（SVG 與文字同色，因為 SVG stroke 用 currentColor） */
+    color: rgba(255, 255, 255, 0.6);
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    outline: none;
+    text-decoration: none;
+    z-index: 2;
+    /* 確保點擊一定命中按鈕本體（滑塊為 pointer-events:none，不會擋住 Tap） */
+    pointer-events: auto;
+}
+
+:root[data-theme="light"] .nav-item {
+    color: rgba(60, 60, 67, 0.55);
+}
+
+.nav-item:focus,
+.nav-item:focus-visible {
+    outline: none;
+    border: none;
+    box-shadow: none;
+    text-decoration: none;
+}
+
+/* 按壓回饋（點擊模式） */
+.nav-item:active {
+    outline: none;
+    transform: scale(0.93);
+}
+
+/* SF Symbols / Lucide 風格單色線條圖示（SVG stroke 由 currentColor 控制） */
+.nav-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    color: inherit;
+    transition: color 0.25s ease;
+}
+
+/* 提高優先級：即使有其他樣式表、快取舊 CSS 或瀏覽器預設樣式干擾，
+   Tab 圖示都唔會被隱藏或縮成 0 尺寸。 */
+#bottom-nav .nav-icon {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1;
+}
+
+#bottom-nav .nav-icon svg {
+    width: 20px !important;
+    height: 20px !important;
+    display: block !important;
+    flex: 0 0 20px;
+    overflow: visible;
+    stroke: currentColor;
+    fill: none;
+}
+
+.nav-label {
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
+    color: inherit;
+    transition: color 0.25s ease;
+    letter-spacing: 0.2px;
+}
+
+/* 選中：純白（淺色主題改為近黑，避免白底看不見） */
+.nav-item.active,
+.nav-item.active .nav-icon,
+.nav-item.active .nav-label {
+    color: #FFFFFF;
+}
+
+:root[data-theme="light"] .nav-item.active,
+:root[data-theme="light"] .nav-item.active .nav-icon,
+:root[data-theme="light"] .nav-item.active .nav-label {
+    color: #1C1C1E;
+}
+
+.nav-item.active .nav-label {
+    font-weight: 600;
+}
+
+.nav-item::before,
+.nav-item::after,
+.nav-item.active::before,
+.nav-item.active::after {
+    display: none !important;
+    content: none !important;
+}
+
+/* ================= 彈窗（Modal） ================= */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-content {
+    background-color: var(--bg-color);
+    border-radius: 25px;
+    padding: 25px;
+    width: 100%;
+    max-width: 320px;
+    box-sizing: border-box;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPop {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-title {
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--text-main);
+    margin-bottom: 18px;
+    text-align: center;
+}
+
+.modal-input {
+    width: 100%;
+    padding: 12px 15px;
+    border-radius: 12px;
+    border: none;
+    background-color: var(--card-purple);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 12px;
+    font-family: var(--font-family);
+    outline: none;
+    box-sizing: border-box;
+    box-shadow: var(--card-shadow);
+    border: var(--card-border);
+}
+
+.modal-input:focus {
+    box-shadow: 0 0 0 3px var(--primary-color);
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.modal-btn {
+    flex: 1;
+    padding: 14px;
+    border-radius: 15px;
+    border: none;
+    font-size: 16px;
+    font-weight: 900;
+    cursor: pointer;
+    font-family: var(--font-family);
+    transition: transform 0.2s;
+}
+
+.modal-btn:active {
+    transform: scale(0.96);
+}
+
+.modal-btn.cancel {
+    background-color: var(--btn-bg);
+    color: var(--text-dark);
+}
+
+.modal-btn.confirm {
+    background-color: var(--coming-green);
+    color: white;
+}
+
+/* ================= 響應式設計 ================= */
+@media (max-width: 500px) {
+    /* 整個 App 容器剛好等於一個畫面高度，並且係 flex column */
+    body {
+        padding: 0;
+        align-items: stretch;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    .phone-mockup {
+        max-width: 100%;
+        width: 100%;
+        /* 100vh 係舊 iOS（未支援 dvh）嘅後備，避免停留喺桌面版嘅 852px
+           而令底部露出一大塊空白 */
+        height: 100vh;
+        height: 100dvh;
+        min-height: 100vh;
+        min-height: 100dvh;
+        border-radius: 0;
+        box-shadow: none;
+        /* 頂部安全區域改由 #app-header 統一處理，
+           這裡歸零避免與 Header 重複計算而出現雙倍空白 */
+        padding-top: 0;
+    }
+
+    .dynamic-island { display: none; }
+    /* 真機由 iOS 狀態欄佔位，模擬用的佔位條不需要（避免二次佔高） */
+    .status-bar { display: none; }
+
+    /* 頂部安全區域：標題、用戶圖示與主題切換鈕完全避開 iOS 狀態欄（時間／WiFi／電池）
+       - 第一行係舊瀏覽器（唔支援 env() / max()）的保底值
+       - 第二行係標準寫法，calc(env(safe-area-inset-top, 20px) + 16px)
+       - 第三行再加 20px 下限，處理「支援 env() 但回報 0」的裝置（桌面預覽、部分 Android） */
+    #app-header {
+        padding-top: 44px;
+        padding-top: calc(constant(safe-area-inset-top) + 16px);
+        padding-top: calc(env(safe-area-inset-top, 20px) + 16px);
+        padding-top: calc(max(env(safe-area-inset-top, 20px), 20px) + 16px);
+    }
+
+    #app-content {
+        padding: var(--spacing-sm) var(--spacing-md);
+        /* 內容滾到底時唔會被底部膠囊擋住 */
+        padding-bottom: var(--spacing-md);
+    }
+}

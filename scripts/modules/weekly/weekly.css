@@ -1,0 +1,491 @@
+.weekly-header {
+    background-color: var(--card-purple);
+    border-radius: 25px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+    /* 注意：原本這裡有 margin-top: 50px，是搜尋框與「本週課表總覽」
+       之間那片巨大空白的元兇。上方間距已由 #app-header 底部內距、
+       #app-content 頂部內距與 .search-container 底部外距提供，這裡必須為 0。 */
+    margin-top: 0;
+}
+
+.weekly-header .title {
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--text-dark);
+}
+
+.weekly-grid {
+    overflow-x: auto;
+    padding-bottom: 30px;
+}
+
+.weekly-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 4px;
+    /* 固定佈局：7 欄平均分配，長科目名唔會撐爆欄寬導致橫向溢出 */
+    table-layout: fixed;
+    font-size: 11px;
+}
+
+/* ================= 課表格子：卡片樣式 =================
+   ⚠ 呢批規則原本只存在於 styles/pages/weekly.css，但該檔已經無任何地方 <link>
+   （週覽樣式已遷移到本模組檔），結果格子退化成純文字：無背景色、無圓角、無陰影。
+   內容層 class 名（.cell-content / .mini-subject / .mini-teacher）保持不變，
+   renderWeeklyGrid() 產生嘅 HTML 可以直接對上。 */
+
+/* 表頭：週一 ~ 週六 */
+.weekly-table th {
+    background-color: var(--card-purple);
+    color: var(--text-dark);
+    padding: 7px 4px;
+    border-radius: 8px;
+    font-weight: 900;
+    font-size: 11px;
+    box-shadow: var(--card-shadow);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 課堂格子：主題卡片色（淺色主題＝白卡、深色主題＝淡紫卡）＋圓角＋層次陰影 */
+.weekly-table td {
+    background-color: var(--card-purple);
+    color: var(--text-dark);
+    /* 格子只有 46x56px，內距過大（例如 10px 8px）會令兩行文字被裁切，
+       所以取 7px 5px：比原本 6px 4px 鬆動少少，又保證內容完整顯示 */
+    padding: 7px 5px;
+    border-radius: 10px;
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
+    text-align: center;
+    vertical-align: middle;
+    width: 44px;
+    height: 56px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* ================= 課堂格子：磨砂玻璃（Glassmorphism）＋ 12px 圓角 =================
+   ⚠ 玻璃一定要落喺 <td> 本身（唔可以落喺內層 .cell-content）：
+   內層若疊喺 <td> 嘅實色底之上，blur 只會採樣到嗰層實色，磨砂感即刻消失。
+   ⚠ 深色主題可以直接用低透明度玻璃（rgba(255,255,255,0.08)）：
+   因為 themes/dark.css 已把卡面文字 --text-dark 翻成純白，白字疊玻璃
+   （合成後 ≈ rgb(28,30,38)、背景 #0f1117）對比約 16:1，清晰可讀。
+   淺色主題卡面本身係白色，若照用 0.08 就會「白字／深字都托唔住」，
+   所以淺色主題必須用高不透明度白底（0.72）＋深色字，對比約 13:1。 */
+.weekly-table td.class-cell {
+    background-color: rgba(255, 255, 255, 0.08);
+    -webkit-backdrop-filter: blur(12px) saturate(1.25);
+    backdrop-filter: blur(12px) saturate(1.25);
+    border: 1px solid rgba(255, 255, 255, 0.12);   /* 玻璃邊緣高光 */
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+}
+
+:root[data-theme="light"] .weekly-table td.class-cell {
+    background-color: rgba(255, 255, 255, 0.72);
+    border-color: rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* 節次欄寬度：必須寫喺表頭（第一行）先有效。
+   ⚠ table-layout: fixed 只採用第一行嘅欄寬，寫喺 .period-cell 上會被忽略，
+   欄寬會變返平均分配（7 欄各 ~47px）。
+   固定 54px：時間已改成上下兩行（'08:05' / '08:50'，每行只 ~27px），
+   唔需要為咗一行長字串而撐闊，嚴禁再撐到 70px+ 去擠壓右邊 6 格課表。 */
+.weekly-table .period-col {
+    width: 54px;
+}
+
+/* 第 1 欄（節次）：用按鈕色、扁平無陰影，跟課堂卡片格區分開 */
+.weekly-table .period-cell {
+    background-color: var(--btn-bg);
+    border: none;
+    font-weight: 900;
+    font-size: 10px;
+    padding: 5px 2px;
+    box-shadow: none;
+    width: 54px;
+    white-space: normal;
+    overflow: hidden;
+}
+
+/* 節次欄內部：上層「第 X 節」／下層時間，縱向排列。
+   ⚠ 唔可以喺 <td> 落 display:flex，會令佢脫離表格佈局，所以靠呢層做。 */
+.weekly-table .period-cell__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 上層：第 X 節（沿用 --text-dark，喺淺色按鈕底上先夠對比） */
+.weekly-table .period-label {
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1.2;
+}
+
+/* 下層：節次時間，上下兩行（'08:05\n08:50'）。
+   white-space: pre-line 令 JS 出嘅換行符真正斷行，唔需要 <br>。
+   ⚠ 呢欄背景係 --btn-bg，淺色主題 #E5E5EA、深色主題 #d1d5e6，兩者都係淺灰，
+   所以唔可以用 rgba(255,255,255,.4)（會完全隱形），要用深色再加 opacity。 */
+.weekly-table .period-time {
+    font-size: 10px;
+    line-height: 1.2;
+    opacity: 0.6;
+    white-space: pre-line;
+    margin-top: 2px;
+    font-weight: 600;
+    color: var(--text-dark);
+    font-variant-numeric: tabular-nums;
+}
+
+/* 空格子：唔顯示卡片，只留低一個淡色破折號 */
+.weekly-table .empty-cell {
+    background-color: transparent;
+    border: none;
+    color: var(--text-muted);
+    box-shadow: none;
+}
+
+/* 格子內部：垂直＋水平居中（科目名與老師名都居中對齊） */
+.weekly-table td .cell-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* 科目名稱：13px / bold / 最多 2 行。
+   節次欄已固定 54px，課堂格約 46.5px（原本 47.5px），所以毋須再縮字級。 */
+.mini-subject {
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.15;
+    color: var(--text-dark);
+    cursor: pointer;
+    text-decoration: underline;
+    transition: opacity 0.2s;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    text-align: center;
+}
+
+.mini-subject:active {
+    opacity: 0.6;
+}
+
+/* 老師名字：10px / regular / 最多 2 行。
+   ⚠ 內容係多位老師嘅 inline <span>（各自可點擊），唔可以用 -webkit-box 做 clamp：
+   舊式 -webkit-box 係單行 flexbox，多個 span 會橫向排爆格子。改用 max-height 截行。 */
+.mini-teacher {
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 1.15;
+    color: var(--text-muted);
+    display: block;
+    max-height: 23px;          /* 2 行 × 10px × 1.15 */
+    max-width: 100%;
+    overflow: hidden;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    text-align: center;
+}
+
+/* 個別老師：點擊 → 彈出該老師嘅一週課表 */
+.mini-teacher .teacher-name {
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.mini-teacher .teacher-name:active {
+    opacity: 0.6;
+}
+
+/* 多位老師之間嘅分隔號 */
+.mini-teacher .teacher-sep {
+    opacity: 0.7;
+}
+
+/* 超長科目名稱：保持 13px 但允許省略 */
+.mini-subject.long-text {
+    font-size: 13px;
+}
+
+/* ================= 資訊彈窗（點科目／老師時彈出） =================
+   同批遺失嘅樣式：weekly.js 嘅 showSubjectModal / showTeacherModal 靠呢批 class。 */
+.info-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: modalFadeIn 0.2s ease;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.info-modal-content {
+    background-color: var(--bg-color);
+    border-radius: 25px;
+    width: 100%;
+    max-width: 380px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 20px;
+    animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalSlideUp {
+    from { opacity: 0; transform: translateY(30px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.info-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.info-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    /* 「數學(代數) 課程總覽」等長標題要識換行，唔可以撐爆彈窗 */
+    font-size: 20px;
+    line-height: 1.3;
+    font-weight: 900;
+    color: var(--text-main);
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.info-modal-icon { font-size: 24px; }
+
+.info-modal-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    color: var(--text-main);
+    font-size: 16px;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.info-modal-close:active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.info-modal-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.info-modal-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.info-modal-item {
+    background-color: var(--card-purple);
+    border-radius: 15px;
+    padding: 12px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.info-modal-item-day {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 700;
+}
+
+.info-modal-item-subject {
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--text-dark);
+}
+
+.info-modal-item-time {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ================= 彈窗 A：老師專屬一週課表 =================
+   點老師名 → 只高亮該老師有課嘅節次，其餘留灰底，一眼睇出佢幾時得閒。 */
+.week-modal-grid {
+    margin-top: 2px;
+}
+
+.week-modal-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 3px;
+    table-layout: fixed;      /* 7 欄平均分配，唔會被科目名撐爆 */
+}
+
+.week-modal-table th {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 2px 0;
+}
+
+/* 第 1 欄：節次（數字 + 開始時間） */
+.week-modal-table .wm-period {
+    width: 34px;
+    font-weight: 900;
+}
+
+.week-modal-table .wm-period__n {
+    display: block;
+    font-size: 12px;
+    line-height: 1.1;
+    color: var(--text-main);
+}
+
+.week-modal-table .wm-period__t {
+    display: block;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* 格子：預設空堂（淺灰虛位） */
+.week-modal-table .wm-cell {
+    height: 34px;
+    padding: 3px 2px;
+    border-radius: 8px;
+    background-color: rgba(142, 142, 147, 0.14);
+    text-align: center;
+    vertical-align: middle;
+    overflow: hidden;
+}
+
+/* 有課嘅節次：實色卡片 */
+.week-modal-table .wm-cell.is-on {
+    background-color: var(--card-purple);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
+}
+
+.week-modal-table .wm-cell__subject {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.12;
+    color: var(--text-dark);
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+/* 空堂只留一點淡色圓點，低調得嚟仍睇得出「呢個時段冇課」 */
+.week-modal-table .wm-cell__dot {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: rgba(142, 142, 147, 0.35);
+}
+
+/* ================= 未選班級：課表區域引導卡 =================
+   首次開啟（localStorage 未有 user_class）時，課表區域唔會顯示任何班級課表，
+   改為顯示這張卡引導選班；顯示狀態由 main.js renderClassPrompt() 切換。 */
+.class-prompt {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 34px 22px;
+    margin-bottom: 30px;
+    border-radius: var(--ios-radius-card, 22px);
+    background-color: var(--card-purple);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
+    text-align: center;
+}
+
+.class-prompt.is-on { display: flex; }
+
+.class-prompt__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    color: var(--primary-color);
+    background-color: var(--btn-bg);
+}
+
+.class-prompt__title {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text-dark);
+}
+
+.class-prompt__desc {
+    max-width: 260px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+.class-prompt__btn {
+    margin-top: 4px;
+    padding: 11px 26px;
+    border: none;
+    border-radius: 999px;
+    font-family: var(--font-family);
+    font-size: 14px;
+    font-weight: 700;
+    color: #ffffff;
+    background-color: var(--primary-color);
+    cursor: pointer;
+    transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.class-prompt__btn:active { transform: scale(0.96); opacity: 0.9; }
+
+/* 引導卡顯示時收起週覽表格，避免出現一整版空表格 */
+.weekly-grid.is-empty { display: none; }

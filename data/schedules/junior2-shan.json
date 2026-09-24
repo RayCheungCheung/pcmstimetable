@@ -1,0 +1,54 @@
+{
+    "1": [
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "留空課程", "teacher": "廖鳳儀" },
+        { "period": 2, "start": "09:00", "end": "09:40", "subject": "周會", "teacher": "廖鳳儀" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "品德公民", "teacher": "廖鳳儀" },
+        { "period": 4, "start": "10:40", "end": "11:20", "subject": "數學", "teacher": "廖鳳儀" },
+        { "period": 5, "start": "11:35", "end": "12:15", "subject": "中文2", "teacher": "鄭炳弟團·鄭炳弟團" },
+        { "period": 6, "start": "14:15", "end": "14:55", "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 7, "start": "15:05", "end": "15:45", "subject": "分組英文", "teacher": "進階英語" }
+    ],
+    "2": [
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 2, "start": "09:00", "end": "09:40", "subject": "中文", "teacher": "劉家晴" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "中文", "teacher": "劉家晴" },
+        { "period": 4, "start": "10:40", "end": "11:20", "subject": "地理", "teacher": "顧俐俐" },
+        { "period": 5, "start": "11:35", "end": "12:15", "subject": "數學_幾", "teacher": "譚鴻生" },
+        { "period": 6, "start": "14:15", "end": "14:55", "subject": "品德公民", "teacher": "陳健鴻" },
+        { "period": 7, "start": "15:05", "end": "15:45", "subject": "數學", "teacher": "廖鳳儀" }
+    ],
+    "3": [
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "中文", "teacher": "劉家晴" },
+        { "period": 2, "start": "09:00", "end": "09:40", "subject": "數學AI", "teacher": "張匯民" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "數學AI", "teacher": "張匯民" },
+        { "period": 4, "start": "10:40", "end": "11:20", "subject": "地理", "teacher": "顧俐俐" },
+        { "period": 5, "start": "11:35", "end": "12:15", "subject": "英語R+S", "teacher": "梁詠詩·林曦瞳" },
+        { "period": 6, "start": "14:15", "end": "14:55", "subject": "體育與健康", "teacher": "容毅燊·陳詠琛" },
+        { "period": 7, "start": "15:05", "end": "15:45", "subject": "體育與健康", "teacher": "容毅燊·陳詠琛" }
+    ],
+    "4": [
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "分組藝術_視", "teacher": "進階藝術" },
+        { "period": 2, "start": "09:00", "end": "09:40", "subject": "分組藝術_視", "teacher": "進階藝術" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "設計科學", "teacher": "何城坤·盧永強" },
+        { "period": 4, "start": "10:40", "end": "11:20", "subject": "設計科學", "teacher": "何城坤·盧永強" },
+        { "period": 5, "start": "11:35", "end": "12:15", "subject": "其他設科", "teacher": "何城坤·李武鴻" },
+        { "period": 6, "start": "14:15", "end": "14:55", "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 7, "start": "15:05", "end": "15:45", "subject": "中文", "teacher": "劉家晴" }
+    ],
+    "5": [
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "聖經", "teacher": "毛劍賢" },
+        { "period": 2, "start": "09:00", "end": "09:40", "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "分組英文", "teacher": "進階英語" },
+        { "period": 4, "start": "10:40", "end": "11:20", "subject": "地理知識", "teacher": "顧俐俐" },
+        { "period": 5, "start": "11:35", "end": "12:15", "subject": "數學", "teacher": "廖鳳儀" },
+        { "period": 6, "start": "14:15", "end": "14:55", "subject": "中文", "teacher": "劉家晴" },
+        { "period": 7, "start": "15:05", "end": "15:45", "subject": "分組英文", "teacher": "進階英語" }
+    ],
+    "6": [
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "留空課程", "teacher": "廖鳳儀" },
+        { "period": 2, "start": "09:00", "end": "09:40", "subject": "分組資訊科技", "teacher": "進階資訊" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "中文", "teacher": "劉家晴" },
+        { "period": 4, "start": "10:40", "end": "11:20", "subject": "數學_幾", "teacher": "譚鴻生" },
+        { "period": 5, "start": "11:35", "end": "12:15", "subject": "分組英文", "teacher": "進階英語" }
+    ]
+}
