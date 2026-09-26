@@ -1,4 +1,3 @@
-這是一份完全比照圖片中的 **「 Star Repo 號召區」、「社群連結（Join the Community）」及「徽章排版」**，為 `pcmstimetable` 量身打造並融入完整 `README.md` 的最終版本：
 
 <div align="center">
 
@@ -9,9 +8,9 @@
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)
 [![Version](https://img.shields.io/badge/version-v3.5.0-blue.svg)](https://pcmstimetable.com)
 [![PWA Ready](https://img.shields.io/badge/PWA-Ready-success.svg)](https://pcmstimetable.com)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/RayCheungCheung/pcmstimetable)
 
-[Website](https://pcmstimetable.com) • [Terms of Service](https://pcmstimetable.com/terms) • [Report Bug](https://github.com/your-username/pcmstimetable/issues) • [Request Feature](https://github.com/your-username/pcmstimetable/issues)
+[Website](https://pcmstimetable.com) • [Terms of Service](https://pcmstimetable.com/terms) • [Report Bug](https://github.com/RayCheungCheung/pcmstimetable/issues) • [Request Feature](https://github.com/RayCheungCheung/pcmstimetable/issues)
 
 </div>
 
@@ -66,7 +65,7 @@
 
 ## 🏗️ System Architecture
 
-
+```text
 [ Client (Browser / PWA) ]
          │
          ├───► Service Worker (Cache / Offline Engine)
@@ -77,7 +76,7 @@
          │
          └───► Google Sheets OAuth & API ──► Sync & Dynamic Local Storage
 
-
+```
 
 ---
 
@@ -92,7 +91,7 @@
 
 1. **Clone the repository**
 ```bash
-git clone [https://github.com/your-username/pcmstimetable.git](https://github.com/your-username/pcmstimetable.git)
+git clone [https://github.com/RayCheungCheung/pcmstimetable.git](https://github.com/RayCheungCheung/pcmstimetable.git)
 cd pcmstimetable
 
 ```
@@ -184,7 +183,7 @@ npm run build
 
 👋 **Follow the project — get new features, releases & updates first:**
 
-**Questions, feature requests, roadmap & support** → [Website Portal](https://www.google.com/url?sa=E&source=gmail&q=https://pcmstimetable.com) · [Terms](https://www.google.com/url?sa=E&source=gmail&q=https://pcmstimetable.com/terms) · [Report Issue](https://www.google.com/url?sa=E&source=gmail&q=https://github.com/your-username/pcmstimetable/issues)
+**Questions, feature requests, roadmap & support** → [Website Portal](https://www.google.com/url?sa=E&source=gmail&q=https://pcmstimetable.com) · [Terms](https://www.google.com/url?sa=E&source=gmail&q=https://pcmstimetable.com/terms) · [Report Issue](https://www.google.com/url?sa=E&source=gmail&q=https://github.com/RayCheungCheung/pcmstimetable/issues)
 
 ---
 
