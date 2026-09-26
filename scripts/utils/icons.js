@@ -28,6 +28,11 @@ const APP_ICON_PATHS = {
     /* ---------- 基本操作 ---------- */
     search: '<circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4.2-4.2"/>',
     close: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+    // 設定頁右上角「更多選項」（⋯）。三個圓點用 fill 實心：
+    // 圖示層統一 fill:none，唔寫 fill="currentColor" 就會變成三個空心圈。
+    moreHorizontal: '<circle cx="5" cy="12" r="1.7" fill="currentColor" stroke="none"/>' +
+        '<circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/>' +
+        '<circle cx="19" cy="12" r="1.7" fill="currentColor" stroke="none"/>',
     plus: '<path d="M12 5.5v13M5.5 12h13"/>',
     pencil: '<path d="M4 20h4L18.5 9.5a2.8 2.8 0 0 0-4-4L4 16v4Z"/><path d="m14 6 4 4"/>',
     trash: '<path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6.5 7 7.5 19a2 2 0 0 0 2 1.9h5a2 2 0 0 0 2-1.9L17.5 7"/><path d="M9.5 7V5.2a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2V7"/>',
@@ -49,6 +54,8 @@ const APP_ICON_PATHS = {
     /* ---------- 箭頭 / 導航 ---------- */
     chevronLeft: '<path d="m14.5 5-7 7 7 7"/>',
     chevronRight: '<path d="m9.5 5 7 7-7 7"/>',
+    // 個人中心「顯示名稱」右側的向下箭頭（點擊展開切換帳號）
+    chevronDown: '<path d="m5.8 9.4 6.2 6.2 6.2-6.2"/>',
     grid: '<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>',
     layoutGrid: '<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>',
     calendar: '<rect x="3" y="4.5" width="18" height="16.5" rx="3"/><path d="M3 10h18M8 2.5v4M16 2.5v4"/>',
@@ -69,6 +76,13 @@ const APP_ICON_PATHS = {
     pin: '<path d="M12 21.2s6.8-5.6 6.8-11a6.8 6.8 0 1 0-13.6 0c0 5.4 6.8 11 6.8 11Z"/><circle cx="12" cy="10" r="2.5"/>',
     alignLeft: '<path d="M4 6.5h16M4 12h11M4 17.5h16"/>',
     globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.2 2.4 3.3 5.3 3.3 8.5S14.2 18.1 12 20.5c-2.2-2.4-3.3-5.3-3.3-8.5S9.8 5.9 12 3.5Z"/>',
+    // 「已連結裝置」：電腦 + 手機（對應 SF Symbols laptopcomputer.and.iphone）。
+    // ⚠ 唔用 globe（地球）代表裝置 —— 地球係網絡／語言嘅慣用符號，
+    //   放喺「已連結裝置」語意唔準確；呢個組合圖示先對得上 WhatsApp / iOS 的裝置清單。
+    devices: '<rect x="2.6" y="5.4" width="12.2" height="8.6" rx="1.8"/>' +
+        '<path d="M1.6 17.6h14.2"/>' +
+        '<rect x="16.4" y="8.2" width="6" height="11.4" rx="1.8"/>' +
+        '<path d="M18.9 17.2h1"/>',
     school: '<path d="M12 3.6 2.6 8.3 12 13l9.4-4.7Z"/><path d="M6.2 10.6v5.2c0 1.7 2.6 3 5.8 3s5.8-1.3 5.8-3v-5.2"/>',
     target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
     palette: '<path d="M12 21a9 9 0 1 1 9-9c0 2.2-1.7 3.5-3.9 3.5h-1.5a2 2 0 0 0-1.4 3.4A1.9 1.9 0 0 1 12 21Z"/><circle cx="8" cy="10.2" r="1"/><circle cx="12" cy="7.6" r="1"/><circle cx="15.8" cy="10.2" r="1"/>',
@@ -77,6 +91,16 @@ const APP_ICON_PATHS = {
     inbox: '<path d="M4 13.2h4.2l1.4 2.8h4.8l1.4-2.8H20"/><path d="M4 13.2 6.6 4.6h10.8L20 13.2v5.6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z"/>',
     eye: '<path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/>',
     eyeOff: '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>',
+
+    /* ---------- 設定頁項目（WhatsApp 原生單色線條風格） ----------
+       對應個人中心各列：帳戶 / 私隱 / 對話 / 儲存空間 / 安全性 / 幫助。
+       與其他圖示同一規範（viewBox 24、fill:none、stroke:currentColor），
+       因此只需切換父層 color 就可以喺黑／白之間轉換，唔需要任何彩色底框。 */
+    key: '<circle cx="12" cy="6.8" r="3.7"/><path d="M12 10.5V21"/><path d="M12 15.9h3.2"/><path d="M12 18.9h2.2"/>',
+    shield: '<path d="M12 3.4 5 6v5.4c0 4.2 2.8 7.3 7 9.2 4.2-1.9 7-5 7-9.2V6Z"/>',
+    chat: '<path d="M20 11.2c0 3.6-3.6 6.5-8 6.5-.9 0-1.8-.12-2.6-.35L5.2 19.4l.9-3.4A6.2 6.2 0 0 1 4 11.2c0-3.6 3.6-6.5 8-6.5s8 2.9 8 6.5Z"/>',
+    help: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.4 2.4 0 1 1 3.1 2.6c-.6.2-.9.7-.9 1.4v.4"/><path d="M12 16.9h.01"/>',
+    arrowsUpDown: '<path d="M8 18.4V6.2"/><path d="m4.7 9.5 3.3-3.3 3.3 3.3"/><path d="M16 5.6v12.2"/><path d="m12.7 14.5 3.3 3.3 3.3-3.3"/>',
 
     /* ---------- 語意圖示（事件 / 假期） ---------- */
     sparkles: '<path d="M10 7.6 11.4 12l4.4 1.4-4.4 1.4L10 19.2 8.6 14.8 4.2 13.4 8.6 12Z"/><path d="M18 3v3.2M19.6 4.6h-3.2"/><path d="M5.4 18.6v2.2M6.5 19.7H4.3"/>',

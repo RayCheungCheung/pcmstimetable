@@ -13,8 +13,39 @@
     transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.class-card.current-class {
-    box-shadow: 0 0 0 3px var(--now-red), var(--card-shadow);
+/* ================= 當前上課節數高亮（Current Active Class） =================
+   成立條件（判定邏輯見 main.js isCurrentClass()）：
+   ① 目前檢視的必須是「是日課表」；② 當前時間 HH:MM:SS 落在該節 [開始, 結束) 之內。
+   紅框用主題變數 --now-red（深淺色主題皆為 #FF3B30），後面補 #FF3B30 作保險。 */
+.class-card.is-now {
+    border: 2px solid var(--now-red, #FF3B30);
+    box-shadow: 0 0 12px rgba(255, 59, 48, 0.25), var(--card-shadow);
+}
+
+/* 右上角 NOW 標籤要讓位：科名／老師文字唔可以伸到標籤下面 */
+.class-card.is-now .info {
+    padding-right: 46px;
+}
+
+/* 方形 NOW 標籤（純文字，全站嚴禁 Emoji）
+   定位相對 .class-card（本身已 position: relative）；卡片雖有 overflow: hidden，
+   但標籤完全落在卡片內部，唔會被裁走。 */
+.now-badge {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    z-index: 2;
+    background-color: var(--now-red, #FF3B30);
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    padding: 3px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    user-select: none;
+    pointer-events: none;
 }
 
 .class-card .period {

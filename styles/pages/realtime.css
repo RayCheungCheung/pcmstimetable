@@ -39,3 +39,38 @@
     gap: 12px;
     margin-bottom: 12px;
 }
+
+/* ================= 假期狀態膠囊 =================
+   是日為假期時，倒數區（#status-container）唔會出任何課堂卡，
+   只出一粒「假期中 · XX節快樂」膠囊（見 main.js holidayCapsuleHtml）。
+   ⚠ 顏色一律用主題變數（--card-purple / --text-dark / --card-border），
+     唔可以硬編白底黑字：本專案預設（無 data-theme）就係深色主題，
+     硬編會出現「白卡白字」。 */
+.status-capsule {
+    display: inline-flex;
+    align-items: center;
+    align-self: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 8px 18px;
+    border-radius: 999px;
+    background-color: var(--card-purple);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
+    color: var(--text-dark);
+    font-size: 14px;
+    font-weight: 700;
+    animation: cardFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.status-capsule .app-icon {
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.status-capsule .capsule-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

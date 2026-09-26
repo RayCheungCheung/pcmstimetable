@@ -1,40 +1,44 @@
 // ============================================================
-// 認證設定 —— 這是唯一需要你動手改的檔案
+// 認證設定 —— 只需改這個檔案就能開通雲端同步
+// （同層的 app-config.js 負責對外正式網域，兩者互不相干）
 // ============================================================
 //
-// 【啟用「使用 Google 帳號登入」三步曲】
+// 本 App 提供「Email + 密碼」的註冊與登入。
+// 帳號預設會同步到 Google Sheets（雲端永續保存），
+// 本機 localStorage 同時保留一份完整副本做「離線優先」快取。
 //
-//  1. 到 https://console.cloud.google.com/apis/credentials
-//     建立「OAuth 用戶端 ID」→ 應用程式類型選「網頁應用程式」。
+// ── 啟用雲端同步（3 步）─────────────────────────────
+//   1. 開一個 Google 試算表 → 擴充功能 → Apps Script
+//   2. 貼上本專案 google-apps-script/Code.gs 全部內容 → 部署為網頁應用程式
+//        · 執行身分：我      · 可存取權：任何人
+//   3. 把部署得到的 /exec 網址貼到下面 cloud.endpoint
 //
-//  2. 在該 Client ID 的設定頁填上兩個欄位：
-//     · 已授權的 JavaScript 來源：https://你的網域
-//       （本機測試要另外加 http://localhost:端口 與 http://127.0.0.1:端口）
-//     · 已授權的重新導向 URI：跟上面一樣即可（GIS 彈窗模式其實不需要，但填了較保險）
-//
-//  3. 把拿到的 Client ID（長得像 1234567890-xxxxxxxx.apps.googleusercontent.com）
-//     填到下面 googleClientId 的引號內。存檔、重新整理，Google 按鈕就會出現。
-//
-//  ※ 未填的情況下 App 依然完全可用：
-//     · Email + 密碼註冊 / 登入照常運作
-//     · Google 按鈕會顯示「未設定」，並提供一個小面板讓你之後直接貼上 Client ID
-//       （貼上後存進 localStorage，不用再改檔案）
-//
+// ⚠ endpoint 留空 = 純本機模式（同舊版行為完全一樣，不會有任何網絡請求）
 // ============================================================
 
 window.APP_AUTH_CONFIG = {
-    // ← 把 Google OAuth Client ID 貼在這裡
-    googleClientId: '',
-
-    // 進到登入頁時，自動嘗試顯示 Google 一鍵登入提示（One Tap）；如覺得騷擾可設 false
-    googleAutoSelect: false,
-
     // 「記住我」勾選時，Session 保留天數
     sessionDays: 30,
 
-    // 允許建立本機 Email 帳號（純前端示範用；關掉就只剩 Google 登入）
+    // 允許建立 Email 帳號（關掉就完全不能註冊／登入）
     allowLocalAccounts: true,
 
     // 允許自訂班級（使用者自行輸入班別）
-    allowCustomClass: true
+    allowCustomClass: true,
+
+    // ── Google Sheets 雲端儲存（via Google Apps Script）──────────────
+    cloud: {
+        // 是否啟用雲端同步（false = 純本機，等同舊版）
+        enabled: true,
+
+        // ⚠ 貼上你自己部署的 GAS Web App 網址（必須以 /exec 結尾）
+        //    例：https://script.google.com/macros/s/AKfycb....../exec
+        endpoint: 'https://script.google.com/macros/s/AKfycbxFMyOP-hu33ATlMAg5havG-5eNqcqnZRsqTREBgQR6Rx1YDXcQ0UP5VaebJtTltrklpA/exec',
+
+        // 單次請求逾時（毫秒）。Apps Script 冷啟動較慢，建議不要低於 8000
+        timeoutMs: 8000,
+
+        // 網絡失敗自動重試次數
+        retry: 2
+    }
 };

@@ -1,25 +1,139 @@
 // ============================================================
 // DataManager（DB）— App 唯一嘅資料存取層（Single Source of Truth）
 //
-// 讀取優先序（三個層級）：
+// 讀取優先序（四個層級，前兩層全部係同步、零網絡 → 首屏「秒開」）：
 //   1. localStorage 覆寫（使用者／開發者改過嘅版本）
-//   2. 靜態 .json 檔案（data/*.json，即預設值）
-//   3. 程式內建備援值（連網絡都無時仍然唔會白畫面）
+//   2. 本機鏡像 localStorage mirror（上次成功由靜態檔抓到嘅副本）
+//   3. 靜態 .json 檔案（data/*.json，即預設值）← 呢層係「背景靜默更新」嘅來源
+//   4. 程式內建備援值（連網絡都無時仍然唔會白畫面）
+//
+// 為何以鏡像取代「每次開 App 都等 JSON」：
+//   service-worker.js 對 .json 係「網絡優先」（資料要盡量新），
+//   即係每次開 App 都至少要一個網絡來回先畫得出課表 —— 弱網就係用戶見到嘅延遲。
+//   加咗鏡像之後，首屏用本機副本即時渲染，靜態檔改為喺背景抓，
+//   抓到有唔同就自動補畫（stale-while-revalidate）。
 //
 // 寫入：一律寫入 localStorage，唔會改動伺服器上嘅 .json。
 // 因此「重置為預設值」＝ 刪掉 localStorage 覆寫，下次重新讀靜態檔。
 //
 // 所有集合（collection）都用同一份描述（descriptor）驅動，
-// 開發者面板（devtools.js）可以直接由描述生成表格／表單／Raw JSON 編輯器。
+// 新增集合只需要加一個 descriptor，唔需要改動讀寫邏輯。
 // ============================================================
 
 const DB_PREFIX = 'appdb_v1_';
-const APP_VERSION = '2.5.0';   // 與 service-worker.js 的 CACHE_NAME、index.html 的 ?v= 標記同步
+
+// 本機鏡像（mirror）：成功由靜態 .json 抓到資料之後，同步寫一份落 localStorage。
+// 同 DB_PREFIX 刻意分開兩個 namespace：
+//   · DB_PREFIX      ＝「用戶改過嘅版本」（覆寫，永遠最優先，唔可以被背景更新蓋掉）
+//   · MIRROR_PREFIX  ＝「檔案嘅本機副本」（可以被背景更新覆蓋）
+// 「重置為預設值」會兩者一齊清（見 clearOverride），確保真係回到檔案版本。
+const DB_MIRROR_PREFIX = 'appdb_mirror_v1_';
+// 資料檔（data/*.json）的版本戳，用於 cache-buster。
+// 分工說明：
+//   · APP_VERSION        → 只管 data/*.json（本檔的 DB.load）
+//   · service-worker.js 的 CACHE_NAME → 靜態資源（CSS / JS / 圖片）嘅總開關
+//   · index.html 的 ?v=  → 逐個檔案嘅 bust 標記，只有改過嘅檔才需要升
+// 三者一齊升版 ＝ 全站強制重新抓一次，發佈時最保險。
+const APP_VERSION = '3.5.0';
 
 // 班級清單的資料結構版本，對照 data/classes.json 的 schemaVersion。
 // 一旦唔一致 → 清掉 localStorage 內殘留嘅舊班級快取（auth_classes_cache），
 // 否則舊清單會永遠蓋過新嘅 classes.json（UI 出現舊班別嘅根本原因）。
 const DB_CLASSES_SCHEMA_KEY = 'appdb_classes_schema_v';
+
+// ================= 唯讀集合（任何情況下強制唯讀） =================
+// 「系統假期／公眾假期」（DB 集合 'holidays' → localStorage appdb_v1_holidays）
+// 屬於官方公佈資料，一律唯讀：
+//   · UI 層：holidays.js 只負責渲染，本身完全無新增／修改／刪除按鈕；
+//     profile.js 與 index.html 亦只讀不寫。
+//   · 資料層：下面呢道閘門係第二重保險 —— 就算日後有人加咗編輯入口，
+//     或者有人喺 Console 直接打 DB.set('holidays', [...]) 硬塞，
+//     一樣會喺寫入前被攔截，確保官方假期唔會被誤觸或覆寫。
+//
+// ⚠ v3.16.0：原本呢度有一個「開發者模式可覆寫」嘅後門（devIsUnlocked()），
+//    隨着開發者模式被徹底移除，後門已經封死 —— 而家係無條件唯讀。
+//
+// 註：如日後要一併鎖定官方行事曆事件，只需將 'events' 加入此陣列即可。
+const DB_READONLY_COLLECTIONS = ['holidays'];
+
+/**
+ * 呢個集合嘅寫入應否被攔截？
+ * 無條件攔截唯讀集合 —— 設計上唔存在任何可以繞過嘅路徑。
+ */
+function dbIsReadonlyBlocked(name) {
+    return DB_READONLY_COLLECTIONS.indexOf(name) !== -1;
+}
+
+/** 被唯讀閘門攔下時的統一提示（Console + Toast） */
+function dbWarnReadonly(name) {
+    let label = name;
+    if (typeof DB !== 'undefined' && typeof DB.def === 'function') {
+        const def = DB.def(name);
+        if (def && def.label) label = def.label;
+    }
+    const message = label + '為官方公佈資料，不開放修改';
+    console.warn('[DB] 已攔截唯讀集合嘅寫入：' + name);
+    // 借用全站共用嘅 Toast（見 profile.css「7. Toast」），令使用者都收到明確回饋
+    if (typeof profileToast === 'function') profileToast(message);
+    return message;
+}
+
+// ================= 網絡層超時（防止「無網死等」） =================
+// App 啟動階段另有一道 1.2 秒上限（main.js 的 DATA_TIMEOUT_MS），
+// 呢個係第二道保險線，專治 lie-fi（連得上 Wi-Fi 但實際上完全無回應）：
+// 逾時就 abort，令 fetch 一定 reject → 上層即刻降級用 localStorage／內建備援值。
+// 無 AbortController 嘅極舊瀏覽器會自動退回「無超時」行為，功能不受影響。
+const DB_FETCH_TIMEOUT_MS = 3000;
+
+function dbFetch(url, options) {
+    const opts = Object.assign({ cache: 'no-store' }, options || {});
+
+    if (typeof AbortController !== 'function') return fetch(url, opts);
+
+    const controller = new AbortController();
+    opts.signal = controller.signal;
+    const timer = setTimeout(() => {
+        try { controller.abort(); } catch (e) { /* 已 abort／不支援：忽略 */ }
+    }, DB_FETCH_TIMEOUT_MS);
+
+    return fetch(url, opts).finally(() => clearTimeout(timer));
+}
+
+// ================= 本機鏡像快取（localStorage mirror） =================
+// 呢三個函式係「秒開」嘅核心：全部同步（無 Promise、無網絡、無 await）。
+// 課表 JSON 極細（每個班約 5KB，全部加埋 < 100KB），localStorage 完全夠位；
+// 即使爆 quota 或私密模式，都只會靜靜失敗，唔會影響任何主流程。
+
+function dbMirrorKey(name) {
+    return DB_MIRROR_PREFIX + String(name).replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+// 讀鏡像：無 / 壞 JSON / 停用儲存 → 一律回 null（呼叫者當作「未快取」）
+function dbReadMirror(name) {
+    try {
+        const raw = localStorage.getItem(dbMirrorKey(name));
+        return raw === null ? null : JSON.parse(raw);
+    } catch (e) {
+        return null;
+    }
+}
+
+// 寫鏡像：失敗（配額已滿、私密模式）只記錄，唔可以阻斷流程
+function dbWriteMirror(name, value) {
+    try {
+        localStorage.setItem(dbMirrorKey(name), JSON.stringify(value));
+        return true;
+    } catch (e) {
+        console.warn('[DB] 寫入本機鏡像失敗（下次仍會由網絡讀取）：' + name);
+        return false;
+    }
+}
+
+function dbClearMirror(name) {
+    try {
+        localStorage.removeItem(dbMirrorKey(name));
+    } catch (e) { /* 停用儲存：無嘢可清 */ }
+}
 
 // ================= 共用常數 =================
 
@@ -391,11 +505,23 @@ const DB = {
     clearOverride: function (name) {
         const def = this.def(name);
         if (!def) return false;
+
+        // 唯讀保護：連「刪除覆寫」都要擋 —— 否則一般使用者可以藉
+        // 「先清空再重載」變相改寫官方資料。呢個路徑只有內部重設流程會用到，
+        // 攔截唯讀集合唔會影響任何既有流程。
+        if (dbIsReadonlyBlocked(name)) {
+            dbWarnReadonly(name);
+            return false;
+        }
+
         try {
             localStorage.removeItem(def.storageKey);
         } catch (e) {
             return false;
         }
+        // ⚠ 鏡像一定要一齊清：否則「重置為預設值 / 班級 schema 換版」之後，
+        //   舊副本仍然會蓋過新嘅靜態檔，用戶就會見到以為改極都改唔到嘅舊資料。
+        dbClearMirror(name);
         delete this._cache[name];
         delete this._loaded[name];
         delete this._inflight[name];
@@ -406,7 +532,10 @@ const DB = {
 
     /**
      * 載入一個集合。
-     * options.force = true 時無視記憶體快取重新讀（重置、外部改動後用）。
+     *   options.force   = true → 無視「記憶體快取」重新讀（重置、外部改動後用）
+     *   options.refresh = true → 連「本機鏡像」都跳過，直接抓靜態檔（背景靜默更新用）
+     * 註：本機有覆寫或鏡像時，整個讀取過程完全同步完成（無網絡、無 await），
+     *     所以呼叫者就算 await，都只係等一個 microtask —— 首次繪製之前就已經有資料。
      * 回傳 Promise<資料>。
      */
     load: function (name, options) {
@@ -429,24 +558,38 @@ const DB = {
                 return value;
             };
 
-            // 1) localStorage（最新修改）
+            // 1) localStorage 覆寫（使用者／開發者改過嘅版本，永遠最優先）
             const stored = self.readStored(name);
             if (stored !== null && stored !== undefined) {
                 return apply(stored, 'local');
             }
 
-            // 2) 靜態 .json 檔案
+            // 2) 本機鏡像：上次成功抓到嘅檔案副本。同步讀取、零網絡、零 await，
+            //    令首屏可以喺同一個 frame 內就有齊資料（「秒開」嘅關鍵）。
+            //    refresh = true（背景更新 / 重置）時要跳過，否則永遠拎唔到新版本。
+            if (!opts.refresh) {
+                const mirrored = dbReadMirror(name);
+                if (mirrored !== null) return apply(mirrored, 'mirror');
+            }
+
+            // 3) 靜態 .json 檔案（網絡）→ 成功就順手寫入鏡像，下次開 App 即刻有得用
             if (def.file) {
                 try {
                     // 加 ?v=<APP_VERSION> 做 cache-buster：即使瀏覽器／CDN 仍然留住舊 JSON，
                     // 都要重新抓一次，避免新版 classes.json 被舊快取蓋住。
+                    // 用 dbFetch：帶 DB_FETCH_TIMEOUT_MS 超時，無網時唔會卡死啟動流程。
                     const base = (typeof appUrl === 'function') ? appUrl(def.file) : def.file;
                     const url = base + (base.indexOf('?') === -1 ? '?' : '&') + 'v=' + APP_VERSION;
-                    const response = await fetch(url, { cache: 'no-store' });
+                    const response = await dbFetch(url);
                     if (response.ok) {
                         const json = await response.json();
                         const raw = def.pick ? json[def.pick] : json;
-                        if (raw !== undefined && raw !== null) return apply(raw, 'file');
+                        if (raw !== undefined && raw !== null) {
+                            // 寫入「原始檔內容」（未正規化）：下次讀鏡像時會經過同一套
+                            // normalize，結果同直接讀檔案完全一致。
+                            dbWriteMirror(name, raw);
+                            return apply(raw, 'file');
+                        }
                     } else {
                         self._lastError[name] = 'HTTP ' + response.status;
                     }
@@ -456,7 +599,7 @@ const DB = {
                 }
             }
 
-            // 3) 內建備援值
+            // 4) 內建備援值（連靜態檔都讀唔到：仍然唔會白畫面）
             return apply(def.fallback !== undefined ? def.fallback : (def.array ? [] : {}), 'fallback');
         })();
 
@@ -502,6 +645,12 @@ const DB = {
         const def = this.def(name);
         if (!def) return false;
 
+        // 唯讀保護：官方資料在任何情況下都寫唔入
+        if (dbIsReadonlyBlocked(name)) {
+            dbWarnReadonly(name);
+            return false;
+        }
+
         const normalized = def.normalize ? def.normalize(value) : value;
         this._cache[name] = normalized;
         this._loaded[name] = true;
@@ -524,25 +673,23 @@ const DB = {
     setMemory: function (name, value) {
         const def = this.def(name);
         if (!def) return false;
+
+        // 唯讀保護：連面板預覽用嘅記憶體寫入都要擋，
+        // 否則草稿仍會經 render 流出街，用戶會見到「改得但又存唔到」嘅假象
+        if (dbIsReadonlyBlocked(name)) {
+            dbWarnReadonly(name);
+            return false;
+        }
+
         this._cache[name] = def.normalize ? def.normalize(value) : value;
         this._loaded[name] = true;
         return true;
     },
 
-    // 刪除 localStorage 覆寫，令下次載入回到靜態檔預設值
-    clearOverride: function (name) {
-        const def = this.def(name);
-        if (!def) return false;
-        try {
-            localStorage.removeItem(def.storageKey);
-        } catch (e) {
-            return false;
-        }
-        delete this._cache[name];
-        delete this._loaded[name];
-        delete this._inflight[name];
-        return true;
-    },
+    // ⚠ 注意：clearOverride 只可以有一份定義（見上面「讀取」段落附近）。
+    //    JavaScript 物件字面量中，同名 key 會以後者為準 —— 呢度本來有第二份
+    //    重複定義，內容較簡略（冇清 this._source[name]），一直靜靜地覆蓋住
+    //    正確嗰份，令 _source 追蹤失效。已移除，避免日後再有人改錯一份。
 
     // 重置單一集合 → 立即重新讀回靜態檔預設值
     reset: async function (name) {
@@ -757,11 +904,18 @@ function dbClassArray(doc) {
  * 回傳 true 代表今次有清過快取。
  */
 async function dbEnsureClassesSchema() {
+    // 離線：呢個檢查一定攞唔到遠端 schemaVersion，唔好白白花幾秒去駁一個註定失敗嘅請求，
+    // 直接跳過（下面 remoteVersion === null 本身已經唔會亂清快取），令啟動即刻繼續。
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        console.log('[DB] 目前離線，跳過班級清單版本檢查');
+        return false;
+    }
+
     let remoteVersion = null;
 
     try {
         const base = (typeof appUrl === 'function') ? appUrl('data/classes.json') : 'data/classes.json';
-        const response = await fetch(base + '?v=' + APP_VERSION, { cache: 'no-store' });
+        const response = await dbFetch(base + '?v=' + APP_VERSION);
         if (response.ok) {
             const json = await response.json();
             if (json && typeof json.schemaVersion === 'number') remoteVersion = json.schemaVersion;

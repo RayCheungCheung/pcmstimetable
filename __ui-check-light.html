@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<title>UI Check (light)</title>
+<link rel="stylesheet" href="styles/main.css?v=2.7.0">
+<link rel="stylesheet" href="styles/themes/light.css">
+<link rel="stylesheet" href="scripts/modules/profile/profile.css?v=3.32.0">
+<style>
+    body { margin: 0; padding: 20px; background: #ccc; display: flex; }
+    .stage { position: relative; width: 440px; height: 956px; flex: 0 0 auto; }
+    .stage .profile-overlay {
+        position: absolute; inset: 0; padding: 0; border-radius: 44px;
+        overflow: hidden; animation: none !important;
+    }
+    .stage .profile-panel { max-width: none; max-height: none; animation: none !important; }
+    .sub-page, .sub-page.is-on { transition: none !important; }
+</style>
+</head>
+<body>
+<div class="stage">
+    <div class="profile-overlay active">
+        <div class="profile-panel">
+            <div class="profile-aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
+            <header class="profile-topbar">
+                <button class="profile-close" id="profile-back" type="button" style="display:none;">‹</button>
+                <div class="profile-topbar__title" id="profile-topbar-title">免責聲明</div>
+                <button class="profile-close" id="profile-close" type="button" style="display:none;">×</button>
+            </header>
+
+            <div class="profile-scroll" id="profile-scroll"></div>
+
+            <section class="sub-page is-on" id="profile-subpage" aria-hidden="false">
+                <header class="sub-page__nav">
+                    <div class="sub-page__nav-row">
+                        <button class="back-btn" id="subpage-back" type="button">‹</button>
+                        <h1 class="sub-page__title" id="subpage-title">免責聲明</h1>
+                        <button class="sub-page__more" id="subpage-more" type="button" style="display:none;">•••</button>
+                    </div>
+                </header>
+
+                <div class="sub-page__body" id="subpage-body">
+                    <div class="ios-home">
+                        <article class="detail-doc">
+                            <p class="detail-doc__meta">最後更新：2026 年 1 月 1 日</p>
+                            <h3>1. 課表資料來源</h3>
+                            <p>本 App 顯示的課表由校方公開資料整理而成，只供個人查閱之用。實際課堂安排一律以校方最新公告為準。</p>
+                            <h3>2. 使用風險</h3>
+                            <p>使用者應自行核對資料正確性。因依賴本 App 資料而引致的任何損失，開發者概不負責。</p>
+                            <ul>
+                                <li>課表或會因加插活動而臨時改動；</li>
+                                <li>停課、改課室等通知請以校方渠道為準。</li>
+                            </ul>
+                            <h3>3. 帳號與資料</h3>
+                            <p>帳號資料只儲存在這部裝置，不會上傳到任何伺服器。</p>
+                            <p class="detail-doc__caps">在法律允許的最大範圍內，本 App 按「現狀」提供，不附帶任何明示或隱含的保證。</p>
+                        </article>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,5 +1,5 @@
 {
-    "_note": "班級清單（培正初二級 6 班，代號 S2A ~ S2F）。schedule 指向該班專屬課表路徑；填 null 表示未有專屬檔案，系統會自動退回 defaultSchedule。schemaVersion 一旦改動，App 會自動清掉 localStorage 內殘留的舊班級快取（auth_classes_cache）。",
+    "_note": "班級清單（初二級 6 班，代號 S2A ~ S2F）。schedule 指向該班專屬課表路徑；填 null 表示未有專屬檔案，系統會自動退回 defaultSchedule。schemaVersion 一旦改動，App 會自動清掉 localStorage 內殘留的舊班級快取（auth_classes_cache）。",
     "schemaVersion": 2,
     "defaultClassId": "junior2-zheng",
     "defaultSchedule": "data/schedule.json",

@@ -5,8 +5,8 @@
         { "period": 3, "start": "09:50", "end": "10:30", "subject": "品德公民", "teacher": "鄭穎清" },
         { "period": 4, "start": "10:40", "end": "11:20", "subject": "數學(代數)", "teacher": "鄭穎清" },
         { "period": 5, "start": "11:35", "end": "12:15", "subject": "英文", "teacher": "梁婉瑩" },
-        { "period": 6, "start": "14:15", "end": "14:55", "subject": "體育與健", "teacher": "徐梓駿‧蕭沛強" },
-        { "period": 7, "start": "15:05", "end": "15:45", "subject": "體育與健", "teacher": "徐梓駿‧蕭沛強" }
+        { "period": 6, "start": "14:15", "end": "14:55", "subject": "體育與健", "teacher": "徐梓駿/蕭沛強" },
+        { "period": 7, "start": "15:05", "end": "15:45", "subject": "體育與健", "teacher": "徐梓駿/蕭沛強" }
     ],
     "2": [
         { "period": 1, "start": "08:05", "end": "08:50", "subject": "中文2", "teacher": "鄭炳弟團" },
@@ -18,16 +18,16 @@
         { "period": 7, "start": "15:05", "end": "15:45", "subject": "英文", "teacher": "梁婉瑩" }
     ],
     "3": [
-        { "period": 1, "start": "08:05", "end": "08:50", "subject": "分組藝術", "teacher": "林曉曄‧黃慧儀" },
-        { "period": 2, "start": "09:00", "end": "09:40", "subject": "分組藝術", "teacher": "林曉曄‧黃慧儀" },
-        { "period": 3, "start": "09:50", "end": "10:30", "subject": "設計科學", "teacher": "閔好年‧盧永強" },
-        { "period": 4, "start": "10:40", "end": "11:20", "subject": "設計科學", "teacher": "閔好年‧盧永強" },
-        { "period": 5, "start": "11:35", "end": "12:15", "subject": "其他設科", "teacher": "閔好年‧盧永強" },
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "分組藝術", "teacher": "林曉曄/黃慧儀" },
+        { "period": 2, "start": "09:00", "end": "09:40", "subject": "分組藝術", "teacher": "林曉曄/黃慧儀" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "設計科學", "teacher": "閔好年/盧永強" },
+        { "period": 4, "start": "10:40", "end": "11:20", "subject": "設計科學", "teacher": "閔好年/盧永強" },
+        { "period": 5, "start": "11:35", "end": "12:15", "subject": "其他設科", "teacher": "閔好年/盧永強" },
         { "period": 6, "start": "14:15", "end": "14:55", "subject": "數學(代數)", "teacher": "鄭穎清" },
         { "period": 7, "start": "15:05", "end": "15:45", "subject": "英文", "teacher": "梁婉瑩" }
     ],
     "4": [
-        { "period": 1, "start": "08:05", "end": "08:50", "subject": "英語 R+S", "teacher": "梁詠詩‧林曦瞳" },
+        { "period": 1, "start": "08:05", "end": "08:50", "subject": "英語 R+S", "teacher": "梁詠詩/林曦瞳" },
         { "period": 2, "start": "09:00", "end": "09:40", "subject": "地理", "teacher": "黃穎琳" },
         { "period": 3, "start": "09:50", "end": "10:30", "subject": "中文", "teacher": "劉梓晴" },
         { "period": 4, "start": "10:40", "end": "11:20", "subject": "分組資訊科技", "teacher": "黃燦霖" },

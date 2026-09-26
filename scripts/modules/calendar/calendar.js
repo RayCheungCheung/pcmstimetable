@@ -1,12 +1,47 @@
-// ================= 功能 8：日曆系統 =================
+// ================= 功能 8：日曆系統（唯讀） =================
+// 事件一律由 DB 集合 'events'（data/events.json）提供，使用者「唔可以自行新增」。
+// 為此已經移除所有新增入口：
+//   · 點擊日期格子只會檢視該日事件（原本會即時彈出新增視窗）
+//   · 新增事件彈窗 #add-calendar-event-modal 及 saveCalendarEvent() 已整組刪除
+// 要新增／修改事件，請改 data/events.json，或連點版本號 5 下進入開發者後台
+// 嘅「月曆與事件」分頁操作（後台 CRUD 不受影響）。
+//
+// ⚠ 刪除權限（漏洞修復，見下方 calendarCanDeleteEvent）：
+//   · 官方假期（type === 'holiday'）屬出廠資料，對一般使用者完全唯讀：
+//     事件清單唔渲染刪除鈕，deleteCalendarEvent() 亦會攔截。
+//     只有通過密碼驗證、真正解鎖開發者模式之後，才顯示刪除鈕並放行。
+//   · 其他類別（測驗／作業／活動／個人日程）維持原本行為，可自行清走。
 let calendarCurrentDate = new Date();
 let calendarEvents = [];
 let calendarSelectedDate = null;
-let selectedEventType = 'exam';
 
 // 事件資料統一由 DataManager（DB 集合 'events'）管理：
 // localStorage（calendar_events）優先 → data/events.json → 空陣列
 const CALENDAR_DB_NAME = 'events';
+
+// ================= 權限判斷（官方假期唯讀） =================
+
+/**
+ * 呢筆事件係唔係「官方假期」？
+ *   · type === 'holiday'：現行 data/events.json 同開發者後台「假期」類別嘅判準
+ *   · isHoliday === true：預留旗標，防止日後資料改咗欄位名而漏判
+ */
+function calendarIsOfficialHoliday(e) {
+    if (!e) return false;
+    return e.type === 'holiday' || e.isHoliday === true;
+}
+
+/**
+ * 呢筆事件可唔可以刪？
+ *   · 官方假期 → 一律唔可以刪（官方公佈資料，任何情況下唯讀）
+ *   · 其他類別 → 使用者可自行刪除
+ *
+ * ⚠ v3.16.0：原本官方假期可以喺「已解鎖開發者模式」之下刪除，
+ *    隨着開發者模式被徹底移除，呢條例外路徑已經封死。
+ */
+function calendarCanDeleteEvent(e) {
+    return !calendarIsOfficialHoliday(e);
+}
 
 // ================= 初始化 =================
 async function initCalendar() {
@@ -108,11 +143,10 @@ function renderCalendar() {
     selectCalendarDate(todayStr);
 }
 
-// ================= 點擊日期格子（直接彈出新增事件） =================
+// ================= 點擊日期格子（只檢視當日事件） =================
 function onCalendarDateClick(dateStr) {
     calendarSelectedDate = dateStr;
     selectCalendarDate(dateStr);
-    openAddCalendarEventModal(dateStr);
 }
 
 // ================= 選擇日期 =================
@@ -145,18 +179,15 @@ function selectCalendarDate(dateStr) {
                 <div class="cal-event-type">${getCalTypeName(e.type)}</div>
                 ${noteHtml}
             </div>
-            <button class="cal-event-delete" onclick="deleteCalendarEvent('${e.id}')" aria-label="刪除事件">${icon('close', { size: 14 })}</button>
+            ${calendarDeleteButtonHtml(e)}
         </div>
     `;
     }).join('');
 }
 
 // ================= 輔助 =================
-// 事件類別的預設圖示名（實際 SVG 由 scripts/utils/icons.js 產生）
-function getCalEventIcon(type) {
-    return dbEventIcon(type);
-}
-
+// 事件圖示一律直接用 dbEventIcon()（scripts/utils/icons.js 產生 SVG）；
+// 舊有嘅 getCalEventIcon() 只服務已刪除嘅新增事件流程，已一併移除。
 function getCalTypeName(type) {
     const names = { exam: '測驗 / 考試', homework: '作業截止', activity: '活動', holiday: '假期' };
     return names[type] || '事件';
@@ -166,93 +197,47 @@ function fmtDate(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// ================= 彈窗控制 =================
-function openAddCalendarEventModal(dateStr) {
-    const modal = document.getElementById('add-calendar-event-modal');
-    if (!modal) return;
-
-    const dateInput = document.getElementById('calendar-event-date');
-    if (dateInput) {
-        dateInput.value = dateStr || fmtDate(new Date());
-    }
-
-    updateDateDisplay(dateInput.value);
-
-    const titleInput = document.getElementById('calendar-event-title');
-    if (titleInput) titleInput.value = '';
-
-    selectedEventType = 'exam';
-    document.querySelectorAll('.gcal-pill').forEach(pill => {
-        pill.classList.toggle('active', pill.dataset.type === 'exam');
-    });
-
-    modal.style.display = 'flex';
-    modal.classList.add('active');
+/**
+ * 產生事件嘅刪除鈕 HTML；唔准刪就回傳空字串。
+ *
+ * ⚠ 關鍵係「完全唔渲染」，唔係用 CSS display:none 藏起 ——
+ *   藏起嘅按鈕仍然留在 DOM 裡面，開 DevTools 一樣撳得到。
+ */
+function calendarDeleteButtonHtml(e) {
+    if (!calendarCanDeleteEvent(e)) return '';
+    return `<button class="cal-event-delete" onclick="deleteCalendarEvent('${e.id}')" aria-label="刪除事件">${icon('close', { size: 14 })}</button>`;
 }
 
-function closeAddCalendarEventModal(event) {
-    if (event && event.target !== event.currentTarget) return;
-    const modal = document.getElementById('add-calendar-event-modal');
-    if (!modal) return;
-    modal.style.display = 'none';
-    modal.classList.remove('active');
-}
-
-function selectEventType(type) {
-    selectedEventType = type;
-    const hiddenInput = document.getElementById('calendar-event-type');
-    if (hiddenInput) hiddenInput.value = type;
-    document.querySelectorAll('.gcal-pill').forEach(pill => {
-        pill.classList.toggle('active', pill.dataset.type === type);
-    });
-}
-
-function updateDateDisplay(dateStr) {
-    const display = document.getElementById('gcal-date-display');
-    if (!display || !dateStr) return;
-    const d = new Date(dateStr);
-    const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-    const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-    display.textContent = `${months[d.getMonth()]}${d.getDate()}日 ${days[d.getDay()]}`;
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    const dateInput = document.getElementById('calendar-event-date');
-    if (dateInput) {
-        dateInput.addEventListener('change', (e) => {
-            updateDateDisplay(e.target.value);
-        });
-    }
-});
-
-// ================= 儲存事件 =================
-function saveCalendarEvent() {
-    const date = document.getElementById('calendar-event-date').value;
-    const title = document.getElementById('calendar-event-title').value.trim();
-    const type = selectedEventType;
-
-    if (!date || !title) {
-        alert('請填寫標題與日期！');
+/**
+ * 顯示提示。重用 app 層嘅 #profile-toast：佢係 position:fixed，
+ * 而且刻意放喺所有 overlay 之外（見 profile.css「7. Toast」），
+ * 本來就係全站通用嘅提示條，唔需要為日曆再整多一個。
+ */
+function calendarToast(message) {
+    if (typeof profileToast === 'function') {
+        profileToast(message);
         return;
     }
-
-    const newEvent = {
-        id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        date: date,
-        title: title,
-        type: type,
-        icon: getCalEventIcon(type)
-    };
-
-    calendarEvents.push(newEvent);
-    saveEventsToStorage();
-    closeAddCalendarEventModal();
-    renderCalendar();
-    selectCalendarDate(date);
+    // 後備：profile.js 未載入時，至少保證用戶收得到訊息，唔會靜靜地失敗
+    window.alert(message);
 }
+
+// ================= 唯讀：原本嘅新增事件流程已經移除 =================
+// 呢個位原本有：openAddCalendarEventModal() / closeAddCalendarEventModal() /
+// selectEventType() / updateDateDisplay() / 日期輸入監聽 / saveCalendarEvent()。
+// 使用者唔可以自己新增事件，所以全部刪除；事件資料只需要 DB 讀取 + renderCalendar()。
 
 // ================= 刪除事件 =================
 function deleteCalendarEvent(eventId) {
+    // ⚠ 第二道防線，亦係真正嘅防線：
+    //    唔渲染刪除鈕只係「唔好引誘誤觸」；呢個函式係 global scope，
+    //    任何人喺 console 打 deleteCalendarEvent('<id>') 一樣叫得到。
+    //    所以權限斷言必須放喺呢度，唔可以只靠 UI 隱藏。
+    if (!calendarCanDeleteEvent(calendarEvents.find(e => e.id === eventId))) {
+        calendarToast('官方假期無法刪除');
+        return;
+    }
+
     if (!confirm('確定要刪除這個事件嗎？')) return;
 
     const originalLength = calendarEvents.length;

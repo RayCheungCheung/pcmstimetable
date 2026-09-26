@@ -20,7 +20,7 @@
     "3": [
         { "period": 1, "start": "08:05", "end": "08:50", "subject": "分組數學", "teacher": "劉天亮" },
         { "period": 2, "start": "09:00", "end": "09:40", "subject": "中文", "teacher": "吳子勝" },
-        { "period": 3, "start": "09:50", "end": "10:30", "subject": "中文2", "teacher": "鄭炳弟團·鄭炳弟團" },
+        { "period": 3, "start": "09:50", "end": "10:30", "subject": "中文2", "teacher": "鄭炳弟團" },
         { "period": 4, "start": "10:40", "end": "11:20", "subject": "分組數學AI", "teacher": "鄭穎清" },
         { "period": 5, "start": "11:35", "end": "12:15", "subject": "分組數學AI", "teacher": "鄭穎清" },
         { "period": 6, "start": "14:15", "end": "14:55", "subject": "品德公民", "teacher": "張曉嵐" },

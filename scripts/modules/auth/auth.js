@@ -1,6 +1,5 @@
 // ============================================================
 // 帳號驗證核心（Real Auth Core）
-//  · Google Identity Services（GIS）第三方登入 / 註冊
 //  · Email + 密碼註冊 / 登入（WebCrypto SHA-256 + 隨機 salt，永不儲存明碼）
 //  · Session 保持（localStorage 長期 / sessionStorage 單次）
 //  · 班級清單載入與「班級 → 課表」綁定
@@ -8,7 +7,6 @@
 
 const AUTH_ACCOUNTS_KEY = 'auth_accounts';       // 帳號資料庫
 const AUTH_SESSION_KEY = 'auth_session';         // 登入 Session
-const AUTH_CLIENT_ID_KEY = 'auth_google_client_id'; // 執行期覆寫的 Google Client ID
 const AUTH_CLASSES_KEY = 'auth_classes_cache';   // 班級清單快取
 const AUTH_FLAG_KEY = 'isLoggedIn';              // 登入旗標（true / false）
 const AUTH_EMAIL_KEY = 'userEmail';              // 目前登入 Email
@@ -17,41 +15,15 @@ const AUTH_NAME_KEY = 'userName';                // 目前登入顯示名稱
 // 課表要跟「這部裝置揀過邊班」走，未登入都用得，所以唔可以只綁在帳號上。
 const AUTH_USER_CLASS_KEY = 'user_class';
 
-const GIS_SRC = 'https://accounts.google.com/gsi/client';
-
 let authAccounts = [];
 let authSession = null;
 let authClasses = null;          // { classes:[], defaultClassId, defaultSchedule }
-let authGisPromise = null;
 let authSecureContext = true;    // crypto.subtle 是否可用
 
 /* ================= 設定 ================= */
 
 function authConfig() {
     return (typeof window !== 'undefined' && window.APP_AUTH_CONFIG) ? window.APP_AUTH_CONFIG : {};
-}
-
-function authGoogleClientId() {
-    // 優先序：執行期貼上的 → 設定檔
-    let stored = '';
-    try {
-        stored = localStorage.getItem(AUTH_CLIENT_ID_KEY) || '';
-    } catch (e) { /* 私密模式 */ }
-    return (stored || authConfig().googleClientId || '').trim();
-}
-
-function authSetGoogleClientId(clientId) {
-    const value = String(clientId || '').trim();
-    try {
-        if (value) localStorage.setItem(AUTH_CLIENT_ID_KEY, value);
-        else localStorage.removeItem(AUTH_CLIENT_ID_KEY);
-    } catch (e) { /* ignore */ }
-    authGisPromise = null;   // 換 ID 後要重新載入 GIS
-    return authGoogleClientId();
-}
-
-function authGoogleConfigured() {
-    return authGoogleClientId().length > 0;
 }
 
 /* ================= 小工具 ================= */
@@ -128,10 +100,25 @@ function authNormalizeAccount(raw) {
     acc.className = acc.className || '';
     acc.schedulePath = acc.schedulePath || '';
     acc.customClass = !!acc.customClass;
+    // ⚠ 「裝置層級雙重認證」功能已刪除：twoFactor 欄位唔再使用，亦唔會再被讀取。
+    //   舊帳號可能仲帶住呢個旗標，喺正規化時直接刪走，避免留低一個冇人讀嘅狀態
+    //   （刪完之後，下一次 authPersistAccounts() 寫檔就會真正同佢講再見）。
+    delete acc.twoFactor;
     acc.createdAt = acc.createdAt || acc.joinedAt || Date.now();
     acc.lastLoginAt = acc.lastLoginAt || acc.createdAt;
     acc.joinedAt = acc.joinedAt || acc.createdAt;
+    // updatedAt ＝「本機最後改動時間」，係雲端同步判斷「有咩未推送」的唯一依據。
+    // ⚠ 任何改動帳號資料的地方都必須 authTouch(account)，
+    //   否則雲端會永遠停留在舊版本（靜默不同步，最難查）。
+    acc.updatedAt = Number(acc.updatedAt) || acc.createdAt;
     return acc;
+}
+
+/** 標記帳號已改動 → 令雲端同步層知道要重新推送 */
+function authTouch(account) {
+    if (!account) return account;
+    account.updatedAt = Date.now();
+    return account;
 }
 
 function authLoadStore() {
@@ -161,10 +148,49 @@ function authLoadStore() {
     authPersistSession();
 }
 
-function authPersistAccounts() {
+/**
+ * 把帳號寫入本機（同步、必然成功優先），並排程一次非阻塞的雲端推送。
+ * @param {{silent?:boolean}} [options] silent = 只寫本機，唔觸發雲端推送
+ *        （用於「由雲端下載」之後的回寫，否則會變成自己推自己）
+ */
+function authPersistAccounts(options) {
     Storage.set(AUTH_ACCOUNTS_KEY, authAccounts);
     // 同步 DB 記憶體快取，令開發者面板見到嘅永遠係最新版本
     if (typeof DB !== 'undefined' && DB.isLoaded('accounts')) DB.setMemory('accounts', authAccounts);
+
+    // 寫入本機之後才排程上雲：用戶唔會等網絡，失敗亦唔影響任何操作
+    if (!(options && options.silent) && typeof cloudSchedulePush === 'function') {
+        cloudSchedulePush();
+    }
+}
+
+/**
+ * 把雲端回傳的帳號併入本機清單（新增或更新）。
+ * 雲端回應可能已遮蔽密碼欄位（例如 get），所以空字串唔可以覆蓋本機已有的雜湊值。
+ * @returns {Object|null} 合併後的本機帳號
+ */
+function authUpsertAccount(remote) {
+    if (!remote || !remote.id) return null;
+
+    const normalized = authNormalizeAccount(remote);
+    const index = authAccounts.findIndex(item => item && item.id === normalized.id);
+
+    if (index < 0) {
+        authAccounts.push(normalized);
+        authPersistAccounts({ silent: true });
+        return normalized;
+    }
+
+    const merged = Object.assign({}, authAccounts[index]);
+    Object.keys(normalized).forEach(key => {
+        // 雲端遮蔽欄位唔可以清空本機的登入能力
+        if ((key === 'salt' || key === 'passwordHash') && !normalized[key]) return;
+        merged[key] = normalized[key];
+    });
+
+    authAccounts[index] = merged;
+    authPersistAccounts({ silent: true });
+    return merged;
 }
 
 function authPersistSession() {
@@ -228,6 +254,21 @@ function autSessionExpired() {
     return Date.now() > authSession.expiresAt;
 }
 
+/**
+ * Session 唯讀快照（供 UI 顯示登入狀態用）。
+ * ⚠ 刻意唔回傳 token：呢個物件會喺「已連結裝置」頁顯示，token 冇任何理由離開 auth.js。
+ * ⚠ expiresAt = 0 代表「只在本次瀏覽階段有效」（未勾選記住我），唔係已過期。
+ * @returns {{accountId:string, persistent:boolean, expiresAt:number}|null}
+ */
+function authSessionInfo() {
+    if (!authSession) return null;
+    return {
+        accountId: authSession.accountId,
+        persistent: !!authSession.expiresAt,
+        expiresAt: Number(authSession.expiresAt) || 0
+    };
+}
+
 function authStartSession(account, remember) {
     const days = Number(authConfig().sessionDays) || 30;
     authSession = {
@@ -254,6 +295,12 @@ function authSwitchAccount(accountId, remember) {
     return { ok: true, account: account };
 }
 
+/**
+ * 從「這部裝置」的帳號清單移除帳號。
+ * ⚠ 刻意唔會刪除雲端（Google Sheets）上的紀錄：
+ *   呢個動作只係本機清單整理，帳號資料本身應該永續保存。
+ *   真正要刪除雲端帳號，請用 cloudDeleteAccount(id)（開發者面板）。
+ */
 function authRemoveAccount(accountId) {
     const index = authAccounts.findIndex(a => a.id === accountId);
     if (index < 0) return false;
@@ -264,6 +311,83 @@ function authRemoveAccount(accountId) {
     if (authSession && authSession.accountId === accountId) authSignOut();
     return true;
 }
+
+/* ================= 帳號維護（個人中心：登入和安全 / 你的帳號） =================
+   以下函式只改動「本機帳號」，與雲端無關：改完之後 authPersistAccounts() 會排程推送，
+   雲端同步有開的話會自動補上，沒有開也不影響任何本機功能。 */
+
+/**
+ * 變更密碼。必須先通過目前密碼驗證，避免有人拿到未鎖定的裝置就直接改密碼。
+ * @param {string} accountId
+ * @param {string} currentPassword 目前密碼（用來驗證身份）
+ * @param {string} newPassword 新密碼
+ * @returns {Promise<{ok:boolean, error?:string, account?:Object}>}
+ */
+async function authChangePassword(accountId, currentPassword, newPassword) {
+    const account = authFindAccount(accountId);
+    if (!account) return { ok: false, error: '找不到這個帳號' };
+    if (!account.passwordHash || !account.salt) {
+        return { ok: false, error: '這個帳號沒有密碼，無法變更' };
+    }
+
+    const passed = await authVerifyPassword(account, currentPassword);
+    if (!passed) return { ok: false, error: '目前密碼不正確' };
+
+    // 每次改密碼都換一組新的鹽值：舊雜湊值連同舊鹽一併失效
+    account.salt = authRandomHex(16);
+    account.passwordHash = await authHashPassword(newPassword, account.salt);
+    authTouch(account);
+    authPersistAccounts();
+    return { ok: true, account: account };
+}
+
+/**
+ * 變更帳號綁定的電郵。同一個電郵不可以同時屬於兩個本機帳號，
+ * 否則 authFindByEmail() 會出現不確定的結果。
+ */
+function authUpdateEmail(accountId, email) {
+    const account = authFindAccount(accountId);
+    if (!account) return { ok: false, error: '找不到這個帳號' };
+
+    const next = authNormalizeEmail(email);
+    if (!authValidEmail(next)) return { ok: false, error: 'Email 格式不正確' };
+
+    const occupied = authAccounts.find(item =>
+        item && item.id !== accountId && authNormalizeEmail(item.email) === next);
+    if (occupied) return { ok: false, error: '這個 Email 已被另一個帳號使用' };
+
+    account.email = next;
+    account.provider = account.passwordHash ? 'email' : account.provider;
+    authTouch(account);
+    authPersistAccounts();
+    authPersistFlags();
+    return { ok: true, account: account };
+}
+
+/** 變更顯示名稱（用戶名稱），並同步登入旗標中的 userName */
+function authUpdateName(accountId, name) {
+    const account = authFindAccount(accountId);
+    if (!account) return { ok: false, error: '找不到這個帳號' };
+
+    const next = String(name || '').trim();
+    if (next.length < 2) return { ok: false, error: '名稱至少需要 2 個字元' };
+    if (next.length > 20) return { ok: false, error: '名稱最多 20 個字元' };
+
+    const occupied = authAccounts.find(item =>
+        item && item.id !== accountId && String(item.name || '').trim() === next);
+    if (occupied) return { ok: false, error: '已有一個帳號使用相同名稱' };
+
+    account.name = next;
+    authTouch(account);
+    authPersistAccounts();
+    authPersistFlags();
+    return { ok: true, account: account };
+}
+
+/* ⚠ 已刪除 authHasTwoFactor() 與 authSetTwoFactor()：
+   隨「裝置層級雙重認證」功能一併移除（唯一呼叫者係 profile.js 嘅
+   profileToggleTwoFactor() 同 profileSwitchAccount() 嘅 2FA 閘門，兩者都已刪）。
+   authSetTwoFactor() 係唯一會寫入 account.twoFactor 嘅地方，冇咗開關就唔應該留住。 */
 
 /* ================= Email 註冊 / 登入 ================= */
 
@@ -295,13 +419,30 @@ async function authSignUpWithEmail(input) {
         lastLoginAt: Date.now()
     });
 
+    // 雲端註冊要「等」：必須即時知道這個 Email 有冇在其他裝置用過，
+    // 唔可以樂觀放行（否則會出現同一個 Email 兩份互不相干的帳號）。
+    let cloudOffline = false;
+    if (typeof cloudRegisterAccount === 'function') {
+        const cloud = await cloudRegisterAccount(account);
+        if (cloud && !cloud.ok && cloud.fatal) {
+            return { ok: false, error: '這個 Email 已經在雲端註冊過了，請直接登入' };
+        }
+        // 連線失敗 → 已排入佇列，本機照常可用，上線後自動補送
+        cloudOffline = !!(cloud && cloud.queued);
+    }
+
     authAccounts.push(account);
     authPersistAccounts();
     authStartSession(account, input.remember !== false);
 
-    return { ok: true, account: account };
+    return { ok: true, account: account, cloudOffline: cloudOffline };
 }
 
+/**
+ * Email 登入。讀取策略＝「雲端為真實來源，本機為離線後備」：
+ *   ① 雲端同步（有網時）：由 Google Sheets 驗證，成功就一併把最新資料寫回本機快取
+ *   ② 離線／雲端查唔到 → 落回本機快取驗證（離線優先，地鐵／校內弱網都用得）
+ */
 async function authSignInWithEmail(input) {
     const email = authNormalizeEmail(input.email);
     const password = String(input.password || '');
@@ -309,162 +450,82 @@ async function authSignInWithEmail(input) {
     if (!email) return { ok: false, error: '請輸入 Email' };
     if (!password) return { ok: false, error: '請輸入密碼' };
 
-    const account = authFindByEmail(email);
-    if (!account) return { ok: false, error: '找不到這個 Email 的帳號' };
+    let account = authFindByEmail(email);
+    const cloudOn = typeof cloudEnabled === 'function' && cloudEnabled();
+    let remote = null;
+
+    if (cloudOn) {
+        // salt 係明文無妨（它的作用只係令相同密碼產生唔同雜湊）；
+        // 明碼密碼永遠唔會離開裝置，送去雲端的只有雜湊值。
+        remote = await cloudSignIn(email, password);
+
+        if (remote.ok) {
+            const merged = authUpsertAccount(remote.account);
+            if (merged) {
+                authStartSession(merged, input.remember !== false);
+                return { ok: true, account: merged, fromCloud: true };
+            }
+        }
+
+        // 雲端明確判定密碼錯 → 直接回報，唔可以再落本機（否則改完密碼仍然登入得到）
+        if (remote.code === 'BAD_PASSWORD') {
+            return { ok: false, error: '密碼錯誤，請重新輸入', reason: 'BAD_PASSWORD' };
+        }
+        if (remote.code === 'NO_PASSWORD') {
+            return { ok: false, error: '這個帳號未設定密碼，請重新註冊', reason: 'NO_PASSWORD' };
+        }
+        // NO_ACCOUNT / 連線失敗 → 落到本機快取（可能係離線期間建立的帳號）
+    }
+
+    if (!account) {
+        // 雲端明確話冇呢個帳號，而本機亦冇快取 → 直接引導去註冊
+        if (remote && remote.code === 'NO_ACCOUNT') {
+            return { ok: false, error: '帳號不存在，請先切換至註冊', reason: 'NO_ACCOUNT' };
+        }
+        // 逾時／連線失敗，而且本機冇快取 → 講清楚係網絡問題，唔好講成「帳號問題」
+        if (remote && remote.offline) {
+            return {
+                ok: false,
+                error: '雲端連線逾時，已切換至離線模式',
+                reason: 'TIMEOUT',
+                offline: true
+            };
+        }
+        if (cloudOn) {
+            return { ok: false, error: '這部裝置沒有這個帳號的快取，而且目前無法連線到雲端，請檢查網絡後再試' };
+        }
+        return { ok: false, error: '找不到這個 Email 的帳號', reason: 'NO_ACCOUNT' };
+    }
+
     if (!account.passwordHash) {
         return { ok: false, error: '這個帳號是用「' + authProviderLabel(account.provider) + '」建立的，請用同一方式登入' };
     }
 
     const ok = await authVerifyPassword(account, password);
-    if (!ok) return { ok: false, error: '密碼不正確' };
+    if (!ok) {
+        // 離線時本機雜湊對不上，未必等於密碼錯（可能雲端改過密碼），唔應該誤導用戶
+        if (remote && remote.offline) {
+            return {
+                ok: false,
+                error: '雲端連線逾時，已切換至離線模式，請稍後再試',
+                reason: 'TIMEOUT',
+                offline: true
+            };
+        }
+        return { ok: false, error: '密碼不正確', reason: 'BAD_PASSWORD' };
+    }
 
     authStartSession(account, input.remember !== false);
-    return { ok: true, account: account };
+    // 用本機快取成功登入，但同時知道雲端今次連唔上 → 通知用戶目前係離線狀態
+    return { ok: true, account: account, offlineFallback: !!(remote && remote.offline) };
 }
 
 function authProviderLabel(provider) {
-    if (provider === 'google') return 'Google 帳號';
     if (provider === 'email') return 'Email';
+    // 舊資料相容：舊版本用第三方登入建立的帳號（provider 存的是當時的第三方名稱），
+    // 新版本已經冇第三方登入，這些帳號要重新註冊。
+    if (provider && provider !== 'local') return '舊版第三方帳號';
     return '本機帳號';
-}
-
-/* ================= Google Identity Services ================= */
-
-function authInjectGis() {
-    if (window.google && window.google.accounts && window.google.accounts.id) {
-        return Promise.resolve();
-    }
-    if (authGisPromise) return authGisPromise;
-
-    authGisPromise = new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = GIS_SRC;
-        script.async = true;
-        script.defer = true;
-
-        const timer = setTimeout(() => reject(new Error('載入 Google 服務逾時')), 12000);
-        script.onload = () => { clearTimeout(timer); resolve(); };
-        script.onerror = () => { clearTimeout(timer); reject(new Error('無法載入 Google 服務（可能被網絡或廣告攔截器封鎖）')); };
-        document.head.appendChild(script);
-    }).catch(err => {
-        authGisPromise = null;
-        throw err;
-    });
-
-    return authGisPromise;
-}
-
-// Google 回傳的 credential 是一段 JWT，前端只需要 payload（後端才需要驗簽）
-function authDecodeJwt(token) {
-    const part = String(token || '').split('.')[1];
-    if (!part) throw new Error('Invalid JWT');
-    const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
-    const binary = atob(base64 + '='.repeat((4 - base64.length % 4) % 4));
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const json = new TextDecoder('utf-8').decode(bytes);
-    return JSON.parse(json);
-}
-
-/**
- * 掛上 Google 官方按鈕。
- * 回傳 { ok, reason } — reason 用於 UI 提示：
- *   no-client-id｜load-failed｜render-failed
- */
-async function authMountGoogleButton(container, onProfile) {
-    if (!container) return { ok: false, reason: 'no-container' };
-    container.innerHTML = '';
-
-    if (!authGoogleConfigured()) return { ok: false, reason: 'no-client-id' };
-
-    try {
-        await authInjectGis();
-    } catch (err) {
-        return { ok: false, reason: 'load-failed', message: err.message };
-    }
-
-    const gis = window.google && window.google.accounts && window.google.accounts.id;
-    if (!gis) return { ok: false, reason: 'load-failed' };
-
-    try {
-        gis.initialize({
-            client_id: authGoogleClientId(),
-            auto_select: !!authConfig().googleAutoSelect,
-            cancel_on_tap_outside: true,
-            callback: response => {
-                let profile;
-                try {
-                    profile = authDecodeJwt(response.credential);
-                } catch (e) {
-                    onProfile({ ok: false, error: 'Google 回傳資料解析失敗' });
-                    return;
-                }
-                onProfile({ ok: true, profile: profile });
-            }
-        });
-
-        gis.renderButton(container, {
-            type: 'standard',
-            theme: authGoogleTheme(),
-            size: 'large',
-            text: 'continue_with',
-            shape: 'pill',
-            logo_alignment: 'left',
-            width: authGoogleButtonWidth(container),
-            locale: 'zh_TW'
-        });
-    } catch (err) {
-        return { ok: false, reason: 'render-failed', message: err && err.message };
-    }
-
-    return { ok: true };
-}
-
-function authGoogleTheme() {
-    const theme = document.documentElement.getAttribute('data-theme');
-    return theme === 'light' ? 'outline' : 'filled_black';
-}
-
-// 官方按鈕寬度跟著容器走（GIS 上限 400 / 下限 240），讓它與其他欄位左右對齊
-function authGoogleButtonWidth(container) {
-    const width = Math.round((container && container.clientWidth) || 0);
-    if (!width) return 320;
-    return Math.max(240, Math.min(400, width));
-}
-
-/**
- * 用 Google 個人資料登入 / 註冊。
- * 已有同 email 帳號就登入，沒有就自動建立（這就是「註冊」）。
- */
-function authSignInWithGoogleProfile(profile) {
-    const email = authNormalizeEmail(profile && profile.email);
-    if (!email) return { ok: false, error: 'Google 帳號沒有提供 Email' };
-
-    let account = authFindByEmail(email);
-    const isNew = !account;
-
-    if (account) {
-        account.provider = 'google';
-        account.name = profile.name || account.name;
-        account.avatarUrl = profile.picture || account.avatarUrl;
-        account.googleSub = profile.sub || account.googleSub;
-    } else {
-        account = authNormalizeAccount({
-            id: 'acc_' + authRandomHex(6),
-            name: profile.name || email.split('@')[0],
-            email: email,
-            provider: 'google',
-            avatarUrl: profile.picture || '',
-            googleSub: profile.sub || '',
-            createdAt: Date.now(),
-            lastLoginAt: Date.now()
-        });
-        authAccounts.push(account);
-    }
-
-    authPersistAccounts();
-    authStartSession(account, true);
-    return { ok: true, account: account, isNew: isNew };
 }
 
 /* ================= 班級：清單 / 綁定 / 課表 ================= */
@@ -627,6 +688,7 @@ function authBindClass(accountId, classId, customName) {
     account.classId = classId;
     account.className = name;
     account.schedulePath = schedulePath;
+    authTouch(account);
     authPersistAccounts();
 
     return { ok: true, account: account };
@@ -784,6 +846,7 @@ function authRepairAccountClasses() {
         if (account.customClass) {
             if (account.schedulePath) {
                 account.schedulePath = '';
+                authTouch(account);
                 fixed += 1;
             }
             return;
@@ -798,6 +861,7 @@ function authRepairAccountClasses() {
             account.classId = '';
             account.className = '';
             account.schedulePath = '';
+            authTouch(account);
             fixed += 1;
             return;
         }
@@ -806,6 +870,7 @@ function authRepairAccountClasses() {
         if ((account.schedulePath || '') !== expectedPath || account.className !== cls.name) {
             account.schedulePath = expectedPath;
             account.className = cls.name;
+            authTouch(account);
             fixed += 1;
         }
     });

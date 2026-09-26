@@ -14,7 +14,7 @@
       ],
       "tue": [
         { "period": 1, "subject": "分組英文", "teacher": "進階英語" },
-        { "period": 2, "subject": "英語R+S", "teacher": "梁詠詩·林曦瞳" },
+        { "period": 2, "subject": "英語R+S", "teacher": "梁詠詩/林曦瞳" },
         { "period": 3, "subject": "分組資訊科技", "teacher": "進階資訊" },
         { "period": 4, "subject": "中文", "teacher": "劉家晴" },
         { "period": 5, "subject": "中文", "teacher": "劉家晴" },
@@ -23,7 +23,7 @@
       ],
       "wed": [
         { "period": 1, "subject": "分組數學", "teacher": "進階數學" },
-        { "period": 2, "subject": "中文2", "teacher": "鄭炳弟團·鄭炳弟團" },
+        { "period": 2, "subject": "中文2", "teacher": "鄭炳弟團/鄭炳弟團" },
         { "period": 3, "subject": "中文", "teacher": "劉家晴" },
         { "period": 4, "subject": "分組進階數學", "teacher": "數學AI" },
         { "period": 5, "subject": "分組進階數學", "teacher": "數學AI" },
@@ -33,8 +33,8 @@
       "thu": [
         { "period": 1, "subject": "地理知識", "teacher": "黃穎琳" },
         { "period": 2, "subject": "中文", "teacher": "劉家晴" },
-        { "period": 3, "subject": "體育與健康", "teacher": "容毅燊·張嘉俊" },
-        { "period": 4, "subject": "體育與健康", "teacher": "容毅燊·張嘉俊" },
+        { "period": 3, "subject": "體育與健康", "teacher": "容毅燊/張嘉俊" },
+        { "period": 4, "subject": "體育與健康", "teacher": "容毅燊/張嘉俊" },
         { "period": 5, "subject": "分組數學_幾", "teacher": "進階數學" },
         { "period": 6, "subject": "分組英文", "teacher": "進階英語" },
         { "period": 7, "subject": "聖經", "teacher": "毛劍賢" }
@@ -50,9 +50,9 @@
       ],
       "sat": [
         { "period": 1, "subject": "留空課程", "teacher": "劉家晴" },
-        { "period": 2, "subject": "設計科學", "teacher": "黎誠軒·李武鴻" },
-        { "period": 3, "subject": "設計科學", "teacher": "黎誠軒·李武鴻" },
-        { "period": 4, "subject": "其他設科", "teacher": "黎誠軒·李武鴻" },
+        { "period": 2, "subject": "設計科學", "teacher": "黎誠軒/李武鴻" },
+        { "period": 3, "subject": "設計科學", "teacher": "黎誠軒/李武鴻" },
+        { "period": 4, "subject": "其他設科", "teacher": "黎誠軒/李武鴻" },
         { "period": 5, "subject": "分組英文", "teacher": "進階英語" }
       ]
     }

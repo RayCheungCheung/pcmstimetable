@@ -18,6 +18,12 @@
     --ios-accent: var(--primary-color, #0A84FF);
     --ios-radius-field: 10px;
     --ios-radius-card: 14px;
+    /* 「記住我」勾號列（卡片表面）。
+       ⚠ 深色唔用純白 —— #fff 擺喺深色表單度會刺眼到似彈窗，改用微亮填充；
+         淺色依設計要求用真白色卡片，但表單本身已經係透白玻璃卡，
+         所以另外補一道 hairline 邊同極淡陰影，否則白卡會溶入背景睇唔到。 */
+    --ios-check-surface: rgba(255, 255, 255, 0.08);
+    --ios-check-line: rgba(255, 255, 255, 0.1);
 }
 
 :root[data-theme="light"] {
@@ -28,6 +34,8 @@
     --ios-separator: rgba(60, 60, 67, 0.24);
     --ios-hairline: rgba(255, 255, 255, 0.7);
     --ios-accent: var(--primary-color, #007AFF);
+    --ios-check-surface: #ffffff;
+    --ios-check-line: rgba(0, 0, 0, 0.05);
 }
 
 /* ================= 1. 容器可見性保險（結構，保留） =================
@@ -204,124 +212,7 @@
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
-/* ================= 7. Google 登入（原生 Spec） ================= */
-
-.google-slot {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 44px;
-    margin-bottom: 2px;
-}
-
-/* GIS 官方按鈕（iframe）置中 */
-.google-slot > div,
-.google-slot iframe {
-    max-width: 100%;
-}
-
-/* 官方按鈕未啟用時的自製按鈕：44px 高、12px 圓角、1px 半透明描邊 */
-.google-btn {
-    width: 100%;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 0 16px;
-    border-radius: 12px;
-    cursor: pointer;
-    font-family: var(--font-family);
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0;
-    outline: none;
-    -webkit-tap-highlight-color: transparent;
-    transition: background-color 0.2s ease, transform 0.18s ease, opacity 0.2s ease;
-}
-
-/* 深色：半透明系統填充 + 白字（符合 Google 深色規範） */
-:root[data-theme] .google-btn {
-    color: #ffffff;
-    background-color: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: none;
-}
-
-:root[data-theme] .google-btn:hover { background-color: rgba(255, 255, 255, 0.18); }
-
-/* 淺色：純白底黑字 + 極細描邊 */
-:root[data-theme="light"] .google-btn {
-    color: #1c1c1e;
-    background-color: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
-}
-
-:root[data-theme="light"] .google-btn:hover { background-color: #f7f7fa; }
-
-.google-btn:active { transform: scale(0.985); }
-
-.google-btn.is-dim { opacity: 0.6; }
-
-.google-btn__g {
-    width: 18px;
-    height: 18px;
-    flex: 0 0 18px;
-}
-
-/* Google 未設定 / 載入失敗的說明：極簡腳註，不擋主要流程 */
-:root[data-theme] .auth-notice {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    width: 100%;
-    margin-top: 2px;
-    padding: 0 6px;
-    border: none;
-    border-radius: 0;
-    background-color: transparent;
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 1.5;
-    text-align: center;
-    color: var(--text-muted);
-    opacity: 0.85;
-}
-
-:root[data-theme] .auth-notice--warn {
-    color: var(--text-muted);
-    background-color: transparent;
-    border: none;
-}
-
-.auth-notice__icon { flex: 0 0 auto; font-size: 11px; opacity: 0.8; }
-
-/* 「或使用 Email」分隔線 */
-:root[data-theme] .auth-divider {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 18px 0 18px;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-muted);
-    opacity: 0.9;
-    white-space: nowrap;
-}
-
-:root[data-theme] .auth-divider::before,
-:root[data-theme] .auth-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background-color: var(--ios-separator);
-}
-
-/* ================= 8. 表單欄位（原生填色 Input） ================= */
+/* ================= 7. 表單欄位（原生填色 Input） ================= */
 
 :root[data-theme] .auth-field { margin-bottom: 16px; }
 :root[data-theme] .auth-field:last-child { margin-bottom: 0; }
@@ -369,58 +260,99 @@
     box-shadow: inset 0 0 0 1.5px rgba(255, 69, 58, 0.9);
 }
 
-/* 「記住我」 */
+/* ---- 「記住我」：iOS 原生極簡勾號列（Checkmark Row）----
+   ⚠ 演進史（唔好行回頭路）：18px 方框 Checkbox → 51×31 Toggle Switch → 現版本。
+     兩個舊版都唔啱：方框係網頁語彙；Toggle 51×31 喺一張登入卡入面太大舊、
+     搶走主按鈕嘅視覺重心。iOS / WhatsApp 呢種「單一選項」一律用勾號列：
+     整列可撳，右側只有一粒藍色剔號。
+   ⚠ 真身 <input type="checkbox"> 必須留喺 DOM（唔可以換成 <span> 假開關）：
+     profile.js 讀 remember.checked、label 點擊靠原生行為、鍵盤 Space 切換、
+     螢幕閱讀器報讀全部依賴佢。CSS 只負責「隱藏佢、另畫剔號」。
+   ⚠ 唔可以寫 .auth-check input { display: none } 或 visibility: hidden ——
+     兩者都會連焦點同鍵盤操作一齊殺死，只可以用 1px + opacity: 0。 */
 :root[data-theme] .auth-check {
+    position: relative;                 /* 令 1px 隱藏 input 有確定嘅定位基準 */
     display: flex;
-    align-items: center;
-    gap: 8px;
+    align-items: center;                /* 文字與剔號垂直居中 */
+    justify-content: space-between;     /* 文字靠左、剔號靠右 */
+    gap: 12px;
+    padding: 12px 16px;                 /* iOS 標準行高（總高 = 20 + 24 = 44px） */
+    border-radius: var(--ios-radius-card);
+    background-color: var(--ios-check-surface);
+    border: 1px solid var(--ios-check-line);
     cursor: pointer;
-    font-size: 13px;
-    font-weight: 400;
-    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--text-main);
     user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.18s ease;
 }
 
+/* 淺色白卡需要一道極淡陰影先同表單嘅透白玻璃卡分得開（見 --ios-check-surface 註解） */
+:root[data-theme="light"] .auth-check {
+    box-shadow: 0 1px 6px rgba(16, 18, 40, 0.05);
+}
+
+/* 按壓回饋：同 .ios-row / .ios-choice 一致（只改底色，唔縮放） */
+:root[data-theme] .auth-check:active { background-color: rgba(255, 255, 255, 0.06); }
+:root[data-theme="light"] .auth-check:active { background-color: rgba(0, 0, 0, 0.04); }
+
+/* 文字：靠左並吸走剩餘空間，剔號自然被推到卡片右緣 */
+:root[data-theme] .auth-check__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 隱藏嘅真身 input：1px + opacity: 0（仍然 focusable、仍然係 label 嘅關聯控件） */
 :root[data-theme] .auth-check input {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
-    margin: 0;
-    flex: 0 0 18px;
-    border-radius: 5px;
-    border: 1.5px solid var(--ios-separator);
-    background-color: transparent;
-    cursor: pointer;
-    position: relative;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-}
-
-:root[data-theme] .auth-check input:checked {
-    border-color: transparent;
-    background-color: var(--ios-accent);
-}
-
-:root[data-theme] .auth-check input:checked::after {
-    content: '';
     position: absolute;
-    left: 5.5px;
-    top: 2px;
-    width: 5px;
-    height: 9px;
-    border: solid #fff;
-    border-width: 0 2px 2px 0;
-    transform: rotate(42deg);
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
-.auth-field__row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
+/* 右側剔號：圖示本身係 SVG（data-icon="check"，stroke: currentColor），
+   顏色統一用 --ios-blue（淺色 = #007AFF，同外觀子頁面嘅單選剔號同一隻色；
+   深色主題自動跟隨成 #0A84FF，避免喺黑底上用刺眼嘅 #007AFF）。
+   ⚠ 未選中係完全透明（依要求「右側留空」，唔擺灰圈佔位圖示），
+     但仍然保留 20px 佔位，令文字唔會因為剔號出現／消失而左右跳動。 */
+:root[data-theme] .auth-check__mark {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    color: var(--ios-blue, #007AFF);
+    opacity: 0;
+    transform: scale(0.75);
+    transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
-/* ================= 9. 主按鈕：iOS 經典 Accent（無漸層、無霓虹） ================= */
+/* ⚠ 一定要用兄弟選擇器 ~：剔號喺 DOM 上排喺 input 之後（見 index.html），
+   排前面嘅話 :checked 永遠配唔到，剔號就唔會亮。 */
+:root[data-theme] .auth-check input:checked ~ .auth-check__mark {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* 鍵盤焦點：光環畫喺剔號上 —— 真身 input 只有 1px，畫喺佢身上冇人睇得到；
+   亦唔用瀏覽器預設 outline（卡片圓角上會露出方角）。 */
+:root[data-theme] .auth-check input:focus-visible ~ .auth-check__mark {
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.25);
+}
+
+/* ================= 8. 主按鈕：iOS 經典 Accent（無漸層、無霓虹） ================= */
 
 :root[data-theme] .btn-primary-block {
     width: 100%;
@@ -487,7 +419,7 @@
     margin: 0;
 }
 
-/* ================= 10. 提示訊息 ================= */
+/* ================= 9. 提示訊息 ================= */
 
 :root[data-theme] .auth-alert {
     display: none;
@@ -529,43 +461,7 @@
 
 .auth-alert__icon { flex: 0 0 auto; font-size: 12px; }
 
-/* ================= 11. Client ID 設定面板（分組列表） ================= */
-
-:root[data-theme] .client-setup {
-    display: none;
-    margin-top: 14px;
-    padding: 14px;
-    border-radius: var(--ios-radius-card);
-    background-color: var(--ios-fill-2);
-    border: none;
-}
-
-.client-setup.is-on { display: block; }
-
-:root[data-theme] .client-setup__title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-main);
-    margin-bottom: 8px;
-}
-
-:root[data-theme] .client-setup__steps {
-    margin: 0 0 12px;
-    padding-left: 16px;
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 1.7;
-    color: var(--text-muted);
-}
-
-:root[data-theme] .client-setup__steps code {
-    font-size: 11px;
-    padding: 1px 5px;
-    border-radius: 5px;
-    background-color: var(--ios-fill);
-}
-
-/* ================= 12. 班級選擇 Onboarding ================= */
+/* ================= 10. 班級選擇 Onboarding ================= */
 
 :root[data-theme] .class-stage { margin-bottom: 18px; }
 
@@ -873,10 +769,23 @@
 
 :root[data-theme] .auth-eye.is-on { color: var(--ios-accent); }
 
-/* ---- 「記住我 / 忘記密碼」同一列 ---- */
-:root[data-theme] #profile-view-auth .auth-field__row {
+/* ---- 「記住我」勾號卡 + 「忘記密碼？」----
+   ⚠ 舊版係「剔號項 + 連結」同一橫行（.auth-field__row）。依設計要求，
+     卡片右緣只可以有一粒剔號，所以連結讓位：改為排喺卡片下方靠右。
+   ⚠ 連結必須留喺 #field-remember 入面 —— 切去「註冊」分頁時，
+     profileToggleField('field-remember', false) 係整行連連結一齊收埋；
+     搬出去就會出現「註冊頁仍然見到忘記密碼」。 */
+:root[data-theme] #profile-view-auth .auth-remember {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
     margin-top: 4px;
     margin-bottom: 16px;
+}
+
+:root[data-theme] #profile-view-auth .auth-remember .auth-link {
+    align-self: flex-end;
 }
 
 /* ---- 文字型連結（忘記密碼、切換登入註冊） ---- */

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UI Check (light cards)</title>
+<link rel="stylesheet" href="styles/main.css?v=2.7.0">
+<link rel="stylesheet" href="styles/themes/light.css">
+<link rel="stylesheet" href="scripts/modules/profile/profile.css?v=3.32.0">
+<style>
+    /* 只為截圖：關掉面板入場動畫，避免影到 scale(0.94) 嘅中間格 */
+    .profile-panel, .profile-overlay { animation: none !important; }
+    .sub-page, .sub-page.is-on { transition: none !important; }
+</style>
+</head>
+<body>
+<div class="profile-overlay active">
+    <div class="profile-panel">
+        <div class="profile-aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
+        <header class="profile-topbar">
+            <button class="profile-close" id="profile-back" type="button" style="display:none;">‹</button>
+            <div class="profile-topbar__title" id="profile-topbar-title">帳戶</div>
+            <button class="profile-close" id="profile-close" type="button" style="display:none;">×</button>
+        </header>
+
+        <div class="profile-scroll" id="profile-scroll"></div>
+
+        <section class="sub-page is-on" id="profile-subpage" aria-hidden="false">
+            <header class="sub-page__nav">
+                <div class="sub-page__nav-row">
+                    <button class="back-btn" id="subpage-back" type="button">‹</button>
+                    <h1 class="sub-page__title" id="subpage-title">帳戶</h1>
+                    <button class="sub-page__more" id="subpage-more" type="button">•••</button>
+                </div>
+            </header>
+
+            <div class="sub-page__body" id="subpage-body">
+                <div class="ios-home">
+                    <section class="ios-card">
+                        <div class="ios-list">
+                            <button class="ios-row" type="button">
+                                <span class="ios-row__label">班別</span>
+                                <span class="ios-row__value">4B</span>
+                            </button>
+                            <button class="ios-row" type="button">
+                                <span class="ios-row__label">儲存空間及數據</span>
+                                <span class="ios-row__value">42.1 MB</span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <div class="ios-group-title">用量</div>
+                    <section class="ios-card">
+                        <div class="ios-list">
+                            <div class="detail-stat">
+                                <span class="detail-stat__k">課表資料</span>
+                                <span class="detail-stat__v">2.24 MB</span>
+                            </div>
+                            <div class="detail-stat">
+                                <span class="detail-stat__k">這部裝置可用空間</span>
+                                <span class="detail-stat__v">380.90 GB</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="ios-card">
+                        <div class="ios-list">
+                            <button class="detail-action" type="button">邀請同學使用</button>
+                            <button class="detail-action detail-action--danger" type="button">登出帳號</button>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+</body>
+</html>

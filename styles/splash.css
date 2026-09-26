@@ -1,90 +1,16 @@
-/* ================= Splash Screen ================= */
-#splash-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #1a1a1a;
-    z-index: 99999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-
-/* ================= 書本 Logo ================= */
-.splash-logo {
-    width: 160px;
-    height: 160px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transform-origin: center center;
-    position: relative;
-    z-index: 2;
-    /* Step 1 + Step 2 動畫 */
-    animation: logoSpin 0.8s cubic-bezier(0.45, 0, 0.55, 1) forwards,
-               logoExpand 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.8s forwards;
-}
-
-.splash-logo svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-
-/* ================= Step 1：旋轉 2 圈（快下慢上） ================= */
-@keyframes logoSpin {
-    0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(180deg); }   /* 向下半圈：快速 */
-    50%  { transform: rotate(360deg); }   /* 向上半圈：緩慢 */
-    75%  { transform: rotate(540deg); }   /* 向下半圈：快速 */
-    100% { transform: rotate(720deg); }   /* 向上半圈：緩慢 */
-}
-
-/* ================= Step 2：急速放大 ================= */
-@keyframes logoExpand {
-    0% {
-        transform: rotate(720deg) scale(1);
-        opacity: 1;
-    }
-    60% {
-        opacity: 1;
-    }
-    100% {
-        transform: rotate(720deg) scale(40);
-        opacity: 0;
-    }
-}
-
-/* ================= Step 3：全白遮罩 ================= */
-#splash-screen::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    background-color: #FFFFFF;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    animation: whiteExpand 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.8s forwards;
-    z-index: 1;
-}
-
-@keyframes whiteExpand {
-    0%   { width: 0; height: 0; }
-    100% { width: 300vmax; height: 300vmax; }
-}
-
-/* ================= Step 4：淡出 ================= */
-#splash-screen.hidden {
-    transition: opacity 0.3s ease;
-    opacity: 0;
-    pointer-events: none;
-}
-
-#splash-screen.removed {
-    display: none !important;
-}
+/* ================= Splash Screen（已內嵌，此檔僅作佔位） =================
+ *
+ * 這裡原本是全站 Splash 的樣式來源，現在已完整搬到 index.html 的
+ * <head><style id="splash-critical-css"> 之中，原因：
+ *
+ *   1. 外部 stylesheet 必須先完成一次網絡／磁碟往返才生效，
+ *      期間瀏覽器會用預設白底繪製 <body>，造成「先閃白／再閃黑才見到 Logo」。
+ *   2. 內嵌在 <head> 的 <style> 會在首次繪製「之前」就生效，
+ *      令 Splash 真正做到 0 毫秒顯示。
+ *
+ * ⚠ 之後要改 Splash（尺寸、動畫時長、背景色），請改 index.html 的
+ *    #splash-critical-css，不要改這個檔，否則會出現兩份真相。
+ *
+ * 這個檔案保留不刪，是為了讓仍然快取了舊版 index.html 的裝置
+ * 或舊 Service Worker 不會出現 404，並且提供明確的指路註解。
+ */

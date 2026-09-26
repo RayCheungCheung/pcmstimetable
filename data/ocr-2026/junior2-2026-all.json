@@ -27,17 +27,17 @@
                                              {
                                                  "period":  5,
                                                  "subject":  "分組英文",
-                                                 "teacher":  "余靜雯·周棨俊"
+                                                 "teacher":  "余靜雯/周棨俊"
                                              },
                                              {
                                                  "period":  6,
                                                  "subject":  "分組藝術_視",
-                                                 "teacher":  "王桂芬·劉冠華"
+                                                 "teacher":  "王桂芬/劉冠華"
                                              },
                                              {
                                                  "period":  7,
                                                  "subject":  "分組藝術_視",
-                                                 "teacher":  "王桂芬·劉冠華"
+                                                 "teacher":  "王桂芬/劉冠華"
                                              }
                                          ],
                                  "tue":  [
@@ -59,22 +59,22 @@
                                              {
                                                  "period":  4,
                                                  "subject":  "體育與健康",
-                                                 "teacher":  "容毅燊·蕭沛強"
+                                                 "teacher":  "容毅燊/蕭沛強"
                                              },
                                              {
                                                  "period":  5,
                                                  "subject":  "體育與健康",
-                                                 "teacher":  "容毅燊·蕭沛強"
+                                                 "teacher":  "容毅燊/蕭沛強"
                                              },
                                              {
                                                  "period":  6,
                                                  "subject":  "分組英文",
-                                                 "teacher":  "余靜雯·周棨俊"
+                                                 "teacher":  "余靜雯/周棨俊"
                                              },
                                              {
                                                  "period":  7,
                                                  "subject":  "分組英文",
-                                                 "teacher":  "余靜雯·周棨俊"
+                                                 "teacher":  "余靜雯/周棨俊"
                                              }
                                          ],
                                  "wed":  [
@@ -91,7 +91,7 @@
                                              {
                                                  "period":  3,
                                                  "subject":  "中文2",
-                                                 "teacher":  "鄭炳弟團·鄭炳弟團"
+                                                 "teacher":  "鄭炳弟團/鄭炳弟團"
                                              },
                                              {
                                                  "period":  4,
@@ -111,24 +111,24 @@
                                              {
                                                  "period":  7,
                                                  "subject":  "分組英文",
-                                                 "teacher":  "余靜雯·周棨俊"
+                                                 "teacher":  "余靜雯/周棨俊"
                                              }
                                          ],
                                  "thu":  [
                                              {
                                                  "period":  1,
                                                  "subject":  "設計科學",
-                                                 "teacher":  "劉冠華·林達鑫"
+                                                 "teacher":  "劉冠華/林達鑫"
                                              },
                                              {
                                                  "period":  2,
                                                  "subject":  "設計科學",
-                                                 "teacher":  "劉冠華·林達鑫"
+                                                 "teacher":  "劉冠華/林達鑫"
                                              },
                                              {
                                                  "period":  3,
                                                  "subject":  "其他設科",
-                                                 "teacher":  "劉冠華·林達鑫"
+                                                 "teacher":  "劉冠華/林達鑫"
                                              },
                                              {
                                                  "period":  4,
@@ -148,7 +148,7 @@
                                              {
                                                  "period":  7,
                                                  "subject":  "分組英文",
-                                                 "teacher":  "余靜雯·周棨俊"
+                                                 "teacher":  "余靜雯/周棨俊"
                                              }
                                          ],
                                  "fri":  [
@@ -170,12 +170,12 @@
                                              {
                                                  "period":  4,
                                                  "subject":  "分組英文",
-                                                 "teacher":  "余靜雯·周棨俊"
+                                                 "teacher":  "余靜雯/周棨俊"
                                              },
                                              {
                                                  "period":  5,
                                                  "subject":  "分組英文",
-                                                 "teacher":  "余靜雯·周棨俊"
+                                                 "teacher":  "余靜雯/周棨俊"
                                              },
                                              {
                                                  "period":  6,
@@ -197,7 +197,7 @@
                                              {
                                                  "period":  2,
                                                  "subject":  "分組英文",
-                                                 "teacher":  "余靜雯·周棨俊"
+                                                 "teacher":  "余靜雯/周棨俊"
                                              },
                                              {
                                                  "period":  3,
@@ -207,7 +207,7 @@
                                              {
                                                  "period":  4,
                                                  "subject":  "英語R+S",
-                                                 "teacher":  "梁詠詩·林曦瞳"
+                                                 "teacher":  "梁詠詩/林曦瞳"
                                              },
                                              {
                                                  "period":  5,
@@ -267,7 +267,7 @@
                                              {
                                                  "period":  2,
                                                  "subject":  "英語R+S",
-                                                 "teacher":  "梁詠詩·林曦瞳"
+                                                 "teacher":  "梁詠詩/林曦瞳"
                                              },
                                              {
                                                  "period":  3,
@@ -304,7 +304,7 @@
                                              {
                                                  "period":  2,
                                                  "subject":  "中文2",
-                                                 "teacher":  "鄭炳弟團·鄭炳弟團"
+                                                 "teacher":  "鄭炳弟團/鄭炳弟團"
                                              },
                                              {
                                                  "period":  3,
@@ -346,12 +346,12 @@
                                              {
                                                  "period":  3,
                                                  "subject":  "體育與健康",
-                                                 "teacher":  "容毅燊·張嘉俊"
+                                                 "teacher":  "容毅燊/張嘉俊"
                                              },
                                              {
                                                  "period":  4,
                                                  "subject":  "體育與健康",
-                                                 "teacher":  "容毅燊·張嘉俊"
+                                                 "teacher":  "容毅燊/張嘉俊"
                                              },
                                              {
                                                  "period":  5,
@@ -415,17 +415,17 @@
                                              {
                                                  "period":  2,
                                                  "subject":  "設計科學",
-                                                 "teacher":  "黎誠軒·李武鴻"
+                                                 "teacher":  "黎誠軒/李武鴻"
                                              },
                                              {
                                                  "period":  3,
                                                  "subject":  "設計科學",
-                                                 "teacher":  "黎誠軒·李武鴻"
+                                                 "teacher":  "黎誠軒/李武鴻"
                                              },
                                              {
                                                  "period":  4,
                                                  "subject":  "其他設科",
-                                                 "teacher":  "黎誠軒·李武鴻"
+                                                 "teacher":  "黎誠軒/李武鴻"
                                              },
                                              {
                                                  "period":  5,
@@ -485,12 +485,12 @@
                                              {
                                                  "period":  2,
                                                  "subject":  "體育與健康",
-                                                 "teacher":  "容毅燊·張永豪"
+                                                 "teacher":  "容毅燊/張永豪"
                                              },
                                              {
                                                  "period":  3,
                                                  "subject":  "體育與健康",
-                                                 "teacher":  "容毅燊·張永豪"
+                                                 "teacher":  "容毅燊/張永豪"
                                              },
                                              {
                                                  "period":  4,
@@ -569,7 +569,7 @@
                                              {
                                                  "period":  4,
                                                  "subject":  "中文2",
-                                                 "teacher":  "鄭炳弟團·鄭炳弟團"
+                                                 "teacher":  "鄭炳弟團/鄭炳弟團"
                                              },
                                              {
                                                  "period":  5,
@@ -591,7 +591,7 @@
                                              {
                                                  "period":  1,
                                                  "subject":  "英語R+S",
-                                                 "teacher":  "梁詠詩·林曦瞳"
+                                                 "teacher":  "梁詠詩/林曦瞳"
                                              },
                                              {
                                                  "period":  2,
@@ -681,7 +681,7 @@
                                              {
                                                  "period":  5,
                                                  "subject":  "中文2",
-                                                 "teacher":  "鄭炳弟團·鄭炳弟團"
+                                                 "teacher":  "鄭炳弟團/鄭炳弟團"
                                              },
                                              {
                                                  "period":  6,
@@ -755,17 +755,17 @@
                                              {
                                                  "period":  5,
                                                  "subject":  "英語R+S",
-                                                 "teacher":  "梁詠詩·林曦瞳"
+                                                 "teacher":  "梁詠詩/林曦瞳"
                                              },
                                              {
                                                  "period":  6,
                                                  "subject":  "體育與健康",
-                                                 "teacher":  "容毅燊·陳詠琛"
+                                                 "teacher":  "容毅燊/陳詠琛"
                                              },
                                              {
                                                  "period":  7,
                                                  "subject":  "體育與健康",
-                                                 "teacher":  "容毅燊·陳詠琛"
+                                                 "teacher":  "容毅燊/陳詠琛"
                                              }
                                          ],
                                  "thu":  [
@@ -782,17 +782,17 @@
                                              {
                                                  "period":  3,
                                                  "subject":  "設計科學",
-                                                 "teacher":  "何城坤·盧永強"
+                                                 "teacher":  "何城坤/盧永強"
                                              },
                                              {
                                                  "period":  4,
                                                  "subject":  "設計科學",
-                                                 "teacher":  "何城坤·盧永強"
+                                                 "teacher":  "何城坤/盧永強"
                                              },
                                              {
                                                  "period":  5,
                                                  "subject":  "其他設科",
-                                                 "teacher":  "何城坤·李武鴻"
+                                                 "teacher":  "何城坤/李武鴻"
                                              },
                                              {
                                                  "period":  6,
@@ -941,12 +941,12 @@
                                              {
                                                  "period":  6,
                                                  "subject":  "體育與健康",
-                                                 "teacher":  "徐梓駿·張嘉俊"
+                                                 "teacher":  "徐梓駿/張嘉俊"
                                              },
                                              {
                                                  "period":  7,
                                                  "subject":  "體育與健康",
-                                                 "teacher":  "徐梓駿·張嘉俊"
+                                                 "teacher":  "徐梓駿/張嘉俊"
                                              }
                                          ],
                                  "wed":  [
@@ -963,17 +963,17 @@
                                              {
                                                  "period":  3,
                                                  "subject":  "設計科學",
-                                                 "teacher":  "吳振華·李武鴻"
+                                                 "teacher":  "吳振華/李武鴻"
                                              },
                                              {
                                                  "period":  4,
                                                  "subject":  "設計科學",
-                                                 "teacher":  "吳振華·李武鴻"
+                                                 "teacher":  "吳振華/李武鴻"
                                              },
                                              {
                                                  "period":  5,
                                                  "subject":  "其他設科",
-                                                 "teacher":  "吳振華·李武鴻"
+                                                 "teacher":  "吳振華/李武鴻"
                                              },
                                              {
                                                  "period":  6,
@@ -983,7 +983,7 @@
                                              {
                                                  "period":  7,
                                                  "subject":  "中文2",
-                                                 "teacher":  "鄭炳弟團·鄭炳弟團"
+                                                 "teacher":  "鄭炳弟團/鄭炳弟團"
                                              }
                                          ],
                                  "thu":  [
@@ -1042,7 +1042,7 @@
                                              {
                                                  "period":  4,
                                                  "subject":  "英語R+S",
-                                                 "teacher":  "梁詠詩·林曦瞳"
+                                                 "teacher":  "梁詠詩/林曦瞳"
                                              },
                                              {
                                                  "period":  5,

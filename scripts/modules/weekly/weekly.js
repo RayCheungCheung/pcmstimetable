@@ -3,10 +3,13 @@ const WEEKLY_DAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
 const WEEKLY_DAYS = [1, 2, 3, 4, 5, 6];      // 只顯示週一 ~ 週六
 const WEEKLY_PERIOD_COUNT = 7;
 
-// 老師欄位可能載多位老師，資料以「‧」分隔（例如「徐梓駿‧蕭沛強」）
+// 老師欄位可能載多位老師，資料以「/」分隔（例如「容毅燊/張永豪」）。
+// ⚠ 顯示上嚴禁用「‧」中點號分隔多位老師：渲染時亦一律用 /（見 renderWeeklyGrid）。
+//    本 regex 只係「讀取兼容」——舊資料嘅 ‧ / · / ・ / 、 / ， / , 都照樣拆得開，
+//    資料未及統一都唔會漏咗第二位老師。
 const WEEKLY_TEACHER_SEPARATORS = /[‧·・、,，\/]/;
 
-// 把「徐梓駿‧蕭沛強」拆成 ['徐梓駿', '蕭沛強']
+// 把「容毅燊/張永豪」拆成 ['容毅燊', '張永豪']
 function weeklySplitTeachers(value) {
     return String(value == null ? '' : value)
         .split(WEEKLY_TEACHER_SEPARATORS)
@@ -95,7 +98,7 @@ function renderWeeklyGrid() {
                         <div class="mini-subject subject-title" data-subject="${escapeHtml(cls.subject)}">${escapeHtml(cls.subject)}</div>
                         ${teachers.length ? `<div class="mini-teacher">${teachers.map(name =>
                             `<span class="teacher-name" data-teacher="${escapeHtml(name)}">${escapeHtml(name)}</span>`
-                        ).join('<span class="teacher-sep">‧</span>')}</div>` : ''}
+                        ).join('<span class="teacher-sep">/</span>')}</div>` : ''}
                     </div>
                 </td>
             `;

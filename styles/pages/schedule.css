@@ -22,9 +22,99 @@
     font-weight: 600;
 }
 
+/* ================= 課表日期選擇列（今天 / 明天 / 日期選擇器） =================
+   顏色一律跟主題「成對」變數走，深淺色主題都自動成立：
+   --btn-bg（chip 底）↔ --text-dark（chip 文字）
+   選中狀態把兩者反轉，形成明顯對比，一眼睇出目前係今天定明天。 */
+.schedule-datebar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.schedule-chip {
+    padding: 7px 16px;
+    border: var(--card-border);
+    border-radius: 999px;
+    background-color: var(--btn-bg);
+    color: var(--text-dark);
+    font-family: var(--font-family);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.2s, background-color 0.25s ease, color 0.25s ease;
+}
+
+.schedule-chip:active {
+    transform: scale(0.95);
+}
+
+.schedule-chip.is-on {
+    background-color: var(--text-dark);
+    color: var(--card-purple);
+}
+
+/* 「選擇日期」chip（.schedule-datepick / __icon / __label / __arrow / __input）
+   連同其透明 <input type="date"> 已徹底移除：佢喺多數瀏覽器都開唔到系統日曆，
+   形同假按鈕。日期切換現時只由上面 .schedule-chip（今天 / 明天）負責。 */
+
 .schedule-list {
     display: flex;
     flex-direction: column;
     gap: 10px;
     padding-bottom: 12px;
+}
+
+/* ================= 假期提示卡（是日為假期時取代整個課表清單） =================
+   ⚠ 觸發條件：所選日期命中 holidays 清單（見 main.js getHolidaysOnDate()）。
+     呢個時候 .schedule-list 內一張課堂卡都唔會 render，倒數頁
+     #status-container 亦同樣收埋，所以呢張卡就係課表頁嘅全部內容。
+   用詞：課表頁一律「是日」，嚴禁「今日 / 今天」。 */
+.schedule-holiday {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 6px;
+    background-color: var(--card-purple);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
+    border-radius: 20px;
+    padding: 48px 24px;
+    animation: cardFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.schedule-holiday .holiday-icon {
+    font-size: 44px;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.schedule-holiday .holiday-title {
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--text-dark);
+    line-height: 1.25;
+}
+
+.schedule-holiday .holiday-subtitle {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+/* 假期名稱 + 日期範圍：膠囊標籤，一眼睇到「放邊個假」 */
+.schedule-holiday .holiday-meta {
+    margin-top: 8px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background-color: var(--now-red);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
 }

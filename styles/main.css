@@ -16,9 +16,17 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+/* 全站底色一律跟隨主題（--bg-color），首屏路徑上嚴禁任何純黑 #000：
+   舊版 body 寫死黑色，除咗造成「淺色主題一開 App 先閃一下黑」之外，
+   iOS 橡皮筋滾動／工具列收合時露底亦會見到黑邊（見下方手機斷點）。
+   --boot-bg 由 index.html 開機腳本喺首次繪製前設好，係呢度嘅第二層保險。 */
+html {
+    background-color: var(--bg-color, var(--boot-bg, #0f1117));
+}
+
 body {
     font-family: var(--font-family);
-    background-color: #000000;
+    background-color: var(--bg-color, var(--boot-bg, #0f1117));
     color: var(--text-main);
     display: flex;
     justify-content: center;
@@ -29,11 +37,17 @@ body {
     overflow: hidden;
 }
 
-/* ================= 手機外框 ================= */
+/* ================= 手機外框 =================
+   預設機型：iPhone 16 Pro Max
+   邏輯尺寸 440 × 956 CSS px；DPR 3 → 實體像素 1320 × 2868。
+   DPR 由裝置／瀏覽器提供（真機 iPhone 16 Pro Max 原生就係 3），CSS 只需保證邏輯尺寸正確。
+   max-height 收口：桌面預覽視窗矮過 956 + 上下各 20px 時自動縮短，
+   唔會出現整頁滾動條（內容本身係 #app-content 內部滾動，唔會壓縮走位）。 */
 .phone-mockup {
     width: 100%;
-    max-width: 393px;
-    height: 852px;
+    max-width: 440px;
+    height: 956px;
+    max-height: calc(100dvh - 40px);
     background-color: var(--bg-color);
     border-radius: 55px;
     box-shadow: 0 0 0 12px #2c2c2e, 0 0 0 14px #1c1c1e, 0 30px 60px rgba(0,0,0,0.8);
@@ -490,20 +504,32 @@ body {
 
 /* ================= 響應式設計 ================= */
 @media (max-width: 500px) {
+    /* 修復 iPhone 15/16 Pro Max 底部黑色空位：
+       html / body 嘅底色原本係桌面預覽用嘅純黑，配合 viewport-fit=cover 之後，
+       iOS 喺橡皮筋滾動（rubber-band）、工具列收合、或者容器一時間短過視覺視口時，
+       露出來嘅就是黑色 —— 即係用戶見到嘅底部黑邊。
+       手機斷點內將兩者改成同頁面一致嘅 --bg-color，露底都只會係同一隻底色。 */
+    html {
+        background-color: var(--bg-color);
+    }
+
     /* 整個 App 容器剛好等於一個畫面高度，並且係 flex column */
     body {
         padding: 0;
         align-items: stretch;
         height: 100vh;
         height: 100dvh;
+        min-height: 100vh;
+        min-height: 100dvh;
+        background-color: var(--bg-color);
         overflow: hidden;
     }
 
     .phone-mockup {
         max-width: 100%;
         width: 100%;
-        /* 100vh 係舊 iOS（未支援 dvh）嘅後備，避免停留喺桌面版嘅 852px
-           而令底部露出一大塊空白 */
+        /* 100vh 係舊 iOS（未支援 dvh）嘅後備，避免停留喺桌面版嘅 956px
+           而令底部露出一大塊空白；100dvh 會隨工具列收合即時重算 */
         height: 100vh;
         height: 100dvh;
         min-height: 100vh;

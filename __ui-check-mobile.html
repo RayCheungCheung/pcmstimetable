@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UI Check (mobile)</title>
+<link rel="stylesheet" href="styles/main.css?v=2.7.0">
+<link rel="stylesheet" href="styles/themes/dark.css">
+<link rel="stylesheet" href="scripts/modules/profile/profile.css?v=3.32.0">
+<style>
+    /* 呢個係真機斷點（≤500px）嘅真實情境：唔改任何 overlay / panel 定位，
+       直接睇 .sub-page 用 position: fixed + 100vw × 100dvh 嘅效果。 */
+    .sub-page, .sub-page.is-on { transition: none !important; }
+</style>
+</head>
+<body>
+<div class="profile-overlay active">
+    <div class="profile-panel">
+        <div class="profile-aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
+        <header class="profile-topbar">
+            <button class="profile-close" id="profile-back" type="button" style="display:none;">‹</button>
+            <div class="profile-topbar__title" id="profile-topbar-title">儲存空間及數據</div>
+            <button class="profile-close" id="profile-close" type="button" style="display:none;">×</button>
+        </header>
+
+        <div class="profile-scroll" id="profile-scroll"></div>
+
+        <section class="sub-page is-on" id="profile-subpage" aria-hidden="false">
+            <header class="sub-page__nav">
+                <div class="sub-page__nav-row">
+                    <button class="back-btn" id="subpage-back" type="button">‹</button>
+                    <h1 class="sub-page__title" id="subpage-title">儲存空間及數據</h1>
+                    <button class="sub-page__more" id="subpage-more" type="button">•••</button>
+                </div>
+            </header>
+
+            <div class="sub-page__body" id="subpage-body">
+                <div class="ios-home">
+                    <div class="ios-group-title">用量</div>
+                    <section class="ios-card">
+                        <div class="ios-list">
+                            <div class="detail-stat">
+                                <span class="detail-stat__k">課表資料</span>
+                                <span class="detail-stat__v">2.24 MB</span>
+                            </div>
+                            <div class="detail-stat">
+                                <span class="detail-stat__k">離線快取頁面</span>
+                                <span class="detail-stat__v">38.6 MB</span>
+                            </div>
+                            <div class="detail-stat">
+                                <span class="detail-stat__k">這部裝置可用空間</span>
+                                <span class="detail-stat__v">380.90 GB</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="ios-group-title">管理</div>
+                    <section class="ios-card">
+                        <div class="ios-list">
+                            <button class="detail-action detail-action--danger" type="button">清除快取並重新載入</button>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+<pre id="diag" style="position:fixed;left:0;bottom:0;z-index:9999;background:#fff;color:#000;font:11px/1.4 monospace;margin:0;padding:6px;white-space:pre;"></pre>
+<script>
+    const sub = document.querySelector('.sub-page');
+    const bodyEl = document.querySelector('.sub-page__body');
+    const card = document.querySelector('.ios-card');
+    const val = document.querySelector('.detail-stat__v');
+    const r = (el) => { const b = el.getBoundingClientRect(); return Math.round(b.left) + ',' + Math.round(b.top) + ' ' + Math.round(b.width) + 'x' + Math.round(b.height); };
+    document.getElementById('diag').textContent = [
+        'innerWidth=' + window.innerWidth + '  docClient=' + document.documentElement.clientWidth,
+        'panel=' + r(document.querySelector('.profile-panel')),
+        'sub=' + r(sub) + '  subScrollW=' + sub.scrollWidth,
+        'body=' + r(bodyEl) + '  bodyScrollW=' + bodyEl.scrollWidth,
+        'card=' + r(card) + '  cardScrollW=' + card.scrollWidth,
+        'val=' + r(val),
+        'MQ500=' + window.matchMedia('(max-width: 500px)').matches +
+            ' overlayPad=' + getComputedStyle(document.querySelector('.profile-overlay')).padding +
+            ' subPos=' + getComputedStyle(sub).position +
+            ' subW=' + getComputedStyle(sub).width
+    ].join('\n');
+</script>
+</body>
+</html>
