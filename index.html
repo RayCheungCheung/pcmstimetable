@@ -25,304 +25,6 @@
     })();
     </script>
 
-    <!-- ================= 開機腳本（必須排喺第一個 <style> 之前） =================
-         目的：令「首次繪製」就係正確嘅主題底色，杜絕黑屏／白屏／主題閃爍。
-         背景：外部 CSS（themes/dark.css、themes/light.css）要等網絡往返才生效，
-               期間 html / body 只會用瀏覽器預設白底；而舊版更把首屏底色寫死 #0f1117，
-               淺色主題用戶一開 App 就會先見到深色一閃，觀感極差。
-         做法：喺呢一刻（同步、零網絡、零 await）讀出主題設定並套用到 <html>：
-               · data-theme → 之後載入嘅主題 CSS 即刻對得上，唔會跳色
-               · --boot-bg  → 內嵌 CSS 立即用佢做底色（零閃爍）
-         成本：＜ 0.5ms（只有兩個 localStorage 讀取），完全唔會拖慢首屏。 -->
-    <script>
-    (function () {
-        // ⚠ 必須同 styles/themes/dark.css 與 light.css 嘅 --bg-color 一致
-        var BOOT_BG = { dark: '#0f1117', light: '#F2F2F7' };
-        var theme = 'dark';
-
-        try {
-            var saved = localStorage.getItem('theme');
-            if (saved === 'dark' || saved === 'light') {
-                theme = saved;
-            } else if (window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                theme = 'light';          // 未設定過 → 跟隨系統偏好
-            }
-        } catch (e) { /* 私密模式／停用儲存：用預設深色，功能不受影響 */ }
-
-        var root = document.documentElement;
-        root.setAttribute('data-theme', theme);
-        root.style.setProperty('--boot-bg', BOOT_BG[theme]);
-        root.style.backgroundColor = BOOT_BG[theme];   // 連 <html> 都上色，杜絕任何白底縫隙
-
-        // ---- 品牌 Splash 計時起點（唔再跳過 Splash）----
-        // 舊版會偵測「暖啟動」並用 .boot-warm 直接隱藏 Splash（追求 0ms 秒開）；
-        // 新規範要求品牌動畫每次啟動都播滿 2.0~3.0s，所以呢個跳過機制已經移除。
-        // 改為只記錄一個時間戳，令 main.js 可以由「第一幀」開始準確計動畫播咗幾久，
-        // 唔會因為 main.js 遲載入而縮短品牌動畫（詳見 main.js finishBrandSplash）。
-        window.__BOOT_T0 = (window.performance && window.performance.now)
-            ? window.performance.now()
-            : Date.now();
-    })();
-    </script>
-
-    <!-- ================= Splash 關鍵 CSS（必須內嵌，唔可以等外部 CSS） =================
-         為什麼要內嵌：
-           1. 外部 stylesheet 要等多一次網絡／磁碟往返才生效，期間 <body> 會用瀏覽器預設白底，
-              造成「先黑／先白，再彈出 Logo」嘅閃爍。
-           2. <head> 內嘅 <style> 會在首次繪製前就生效 → Splash 真正 0 毫秒顯示（≤ 100ms 要求）。
-           3. 底色一律用 var(--bg-color)（＝當前主題色）；淺色主題唔會再閃深色。
-              三層 fallback：主題變數 → 開機腳本嘅 --boot-bg → 深色主題色。
-              ⚠ 呢條鏈上面「冇任何一格係純黑 #000」，首屏一定唔會出現黑屏。
-           4. .splash-logo 自帶同 app-logo.svg 一樣嘅深色圓角色塊（#131313 / 28%）做底 ——
-              即係 SVG 未下載完都已經有品牌色塊喺畫面，絕對唔會出現空白框。
-
-         動畫分鏡（總時長由 main.js 控制，見 finishBrandSplash）：
-           Step 1 進場   logoSpin 0.8s（轉 2 圈）
-           Step 2 待機   logoIdle 2.4s infinite（輕微呼吸、一直循環）→ 資料未到都持續有生命感
-           Step 3 轉場   .splash-leaving → logoExpand（放大 40 倍）+ whiteExpand（白圓擴散）0.45s
-           Step 4 淡出   .hidden → opacity 0，200ms（必須同 main.js SPLASH_FADE_MS 一致）
-         資料未就緒（無數據／無網絡／載入失敗）：Logo 繼續播 Step 2，
-         底部淡出顯示 #splash-status 微弱提示（「正在獲取最新課表…」／「重新連線中…」）。 -->
-    <style id="splash-critical-css">
-        html, body { background-color: var(--bg-color, var(--boot-bg, #0f1117)); }
-
-        #splash-screen {
-            position: fixed;
-            inset: 0;
-            background-color: var(--bg-color, var(--boot-bg, #0f1117));
-            z-index: 99999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        /* 註：舊版「暖啟動唔播 Splash」（html.boot-warm 隱藏 #splash-screen）已經移除 ——
-           新規範要求品牌動畫每次啟動都要喺 100ms 內登場並播滿 2.0~3.0s。 */
-
-        /* ================= 內嵌骨架屏（Skeleton） =================
-           用途：資料尚未到達時（冷啟動／背景更新中）顯示佔位骨架，
-                 任何時刻都唔會出現「空白頁」或「黑屏」。
-           位置：直接內嵌喺 #weekly-grid-container 之內，由 renderWeeklyGrid() 首次
-                 渲染時整段覆蓋，所以暖啟動下用戶完全見唔到（零額外成本）。
-           顏色：用半透明灰（跟主題自動明暗），淺色／深色主題都成立。 */
-        #skeleton-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            padding: 14px 4px;
-        }
-
-        #skeleton-grid .skeleton-bar {
-            height: 46px;
-            border-radius: 14px;
-            background-color: rgba(128, 128, 128, 0.10);
-            background-image: linear-gradient(90deg,
-                rgba(128, 128, 128, 0.06) 25%,
-                rgba(128, 128, 128, 0.20) 37%,
-                rgba(128, 128, 128, 0.06) 63%);
-            background-size: 400% 100%;
-            animation: skeletonShimmer 1.1s ease-in-out infinite;
-        }
-
-        @keyframes skeletonShimmer {
-            0%   { background-position: 100% 0; }
-            100% { background-position: 0 0; }
-        }
-
-        /* 未揀班級時週覽表格會收起（weekly.css 係外部檔，遲到都可能未有），
-           所以呢條規則亦要內嵌，避免骨架屏殘留喺引導卡上面。 */
-        .weekly-grid.is-empty #skeleton-grid { display: none; }
-
-        @media (prefers-reduced-motion: reduce) {
-            #skeleton-grid .skeleton-bar { animation: none; }
-        }
-
-        /* ⚠ 特意加 #splash-screen 前綴提高權重：
-           呢段 <style> 必須排喺所有外部 stylesheet「之前」才做到零閃爍，
-           但 .splash-logo__img 同 auth.css 的 .app-logo 權重相同時，
-           後載入嘅 auth.css 會反過來蓋住 Splash 樣式（圓角由 28% 變 22.5%）。
-           用 ID 選擇器就唔受載入次序影響。 */
-        #splash-screen .splash-logo {
-            width: 160px;
-            height: 160px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transform-origin: center center;
-            position: relative;
-            z-index: 2;
-            /* 同 app-logo.svg 一樣嘅深色底 ＋ 28% 圓角：SVG 未下載完都已經有品牌色塊，
-               唔會出現空白框（真正 0 網絡都顯示得到品牌）。 */
-            background-color: #131313;
-            border-radius: 28%;
-            /* Step 1：轉 2 圈（0.8s）→ Step 2：無限「呼吸」循環。
-               資料未到時就係靠呢個循環保持「持續動畫」。
-               ⚠ logoIdle 排喺 logoSpin 之後會接管 transform，所以每個 keyframe 都要寫齊
-                 rotate(720deg)，否則會「跳返原點」。 */
-            animation: logoSpin 0.8s cubic-bezier(0.45, 0, 0.55, 1) forwards,
-                       logoIdle 2.4s cubic-bezier(0.45, 0, 0.55, 1) 0.8s infinite;
-        }
-
-        #splash-screen .splash-logo__img {
-            width: 100%;
-            height: 100%;
-            display: block;
-            border-radius: 28%;
-        }
-
-        @keyframes logoSpin {
-            0%   { transform: rotate(0deg); }
-            25%  { transform: rotate(180deg); }
-            50%  { transform: rotate(360deg); }
-            75%  { transform: rotate(540deg); }
-            100% { transform: rotate(720deg); }
-        }
-
-        /* Step 2：待機呼吸（無限循環）—— 無數據時嘅「持續動畫」就係佢 */
-        @keyframes logoIdle {
-            0%, 100% { transform: rotate(720deg) scale(1);     opacity: 1; }
-            50%      { transform: rotate(720deg) scale(1.055); opacity: 0.9; }
-        }
-
-        /* Step 3：轉場放大（改由 .splash-leaving 觸發，唔再開機自動播） */
-        @keyframes logoExpand {
-            0%   { transform: rotate(720deg) scale(1); opacity: 1; }
-            60%  { opacity: 1; }
-            100% { transform: rotate(720deg) scale(40); opacity: 0; }
-        }
-
-        /* ================= 「🇲🇴 澳門製造」標註 =================
-           位置：Logo 正下方 20px、水平居中。
-             刻意用「絕對定位」而唔用 flex 排列（flex-direction: column）：
-             用 flex 排的話，Logo 會被新增嘅文字推高少少，同原本「正中間」唔一致。
-             絕對定位下 Logo 維持 100% 原位，文字純粹疊喺下面。
-             top 計算：50%（畫面中線）+ 80px（Logo 半高 160/2）+ 20px（間距）= 50% + 100px
-           動畫：延遲 0.3s 淡入，跟住 Logo 開始轉圈之後出現，唔會一齊彈出。
-             用 backwards 保持 0% 狀態（透明）渡過延遲期，否則會先閃一下再淡入。
-             z-index 刻意唔設 → 保持在 #splash-screen::after 白圓（z-index:1）之下，
-             白圓擴散時自然蓋過文字，唔會出現「白底白字」看不見嘅尷尬畫面。 */
-        #splash-screen .made-in-macau {
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: calc(50% + 100px);
-            font-size: 13px;
-            line-height: 1;
-            color: rgba(255, 255, 255, 0.65);
-            letter-spacing: 1.5px;
-            font-weight: 400;
-            text-align: center;
-            white-space: nowrap;
-            user-select: none;
-            -webkit-user-select: none;
-            pointer-events: none;
-            animation: madeInFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.3s backwards;
-        }
-
-        @keyframes madeInFadeIn {
-            0%   { opacity: 0; transform: translateY(8px); }
-            100% { opacity: 1; transform: translateY(0); }
-        }
-
-        /* 淺色主題：底色係 #F2F2F7，白色文字會完全睇唔到 → 換成深色系 */
-        :root[data-theme="light"] #splash-screen .made-in-macau { color: rgba(0, 0, 0, 0.45); }
-
-        /* ================= 底部微弱提示（資料未就緒時） =================
-           規範：無數據 / 無網絡 / 載入失敗時，除咗 Logo 保持循環動畫，
-                 底部要優雅顯示微弱提示（「正在獲取最新課表…」／「重新連線中…」）。
-           由 main.js 加 .splash-waiting 顯示，文字寫入 #splash-status。
-           正常情況（2.5s 內有數據）完全唔會出現。 */
-        #splash-screen .splash-status {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 12vh;
-            padding: 0 24px;
-            text-align: center;
-            font-size: 13px;
-            line-height: 1.5;
-            letter-spacing: 0.5px;
-            font-weight: 400;
-            color: rgba(255, 255, 255, 0.55);
-            opacity: 0;
-            transition: opacity 0.3s linear;
-            pointer-events: none;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        :root[data-theme="light"] #splash-screen .splash-status { color: rgba(0, 0, 0, 0.45); }
-
-        #splash-screen.splash-waiting .splash-status {
-            animation: splashHintPulse 1.8s ease-in-out infinite;
-        }
-
-        @keyframes splashHintPulse {
-            0%, 100% { opacity: 0.35; }
-            50%      { opacity: 0.85; }
-        }
-
-        /* Step 3：全白遮罩（由中心擴散，蓋過整個畫面）
-           ⚠ 只在轉場時才播（由 main.js 加 .splash-leaving 觸發）——
-             舊版係開機 0.8s 自動播，資料未到就會變成「白屏定住」，
-             正好係今次要杜絕嘅情況。 */
-        #splash-screen::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            background-color: #FFFFFF;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1;
-        }
-
-        @keyframes whiteExpand {
-            0%   { width: 0; height: 0; }
-            100% { width: 300vmax; height: 300vmax; }
-        }
-
-        /* ================= 品牌轉場（main.js 加 .splash-leaving 觸發） =================
-           時長 0.45s，必須同 main.js 嘅 SPLASH_LEAVE_MS 一致。 */
-        #splash-screen.splash-leaving .splash-logo {
-            animation: logoExpand 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        #splash-screen.splash-leaving::after {
-            animation: whiteExpand 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        /* Step 4：淡出（時長必須同 main.js 的 SPLASH_FADE_MS 一致）
-           0.2s：品牌規範指定嘅 Fade-out 200ms（舊值 0.1s 太快、0.32s 太拖）。 */
-        #splash-screen.hidden {
-            transition: opacity 0.2s linear;
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        #splash-screen.removed { display: none !important; }
-
-        /* 減少動態偏好：直接顯示靜態 Logo，唔做旋轉／擴散
-           .made-in-macau 亦一併關掉動畫：它的底樣式本身已係 opacity:1，
-           所以 animation:none 之後文字會直接顯示，唔會變成隱形。 */
-        @media (prefers-reduced-motion: reduce) {
-            /* 同樣要帶 #splash-screen 前綴，否則蓋唔過上面較高權重嘅 animation 宣告 */
-            #splash-screen .splash-logo,
-            #splash-screen .made-in-macau,
-            #splash-screen::after { animation: none; }
-
-            /* 提示唔做脈動，但要照樣睇得到（否則 opacity:0 會變隱形）
-               ⚠ 權重必須同 .splash-waiting 同級，所以照樣帶兩個 class */
-            #splash-screen.splash-waiting .splash-status {
-                animation: none;
-                opacity: 0.75;
-            }
-        }
-    </style>
-
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#b0b5d1">
@@ -336,17 +38,16 @@
     
     <!-- 樣式表 -->
     <!-- ?v= 版本號：強制瀏覽器／Service Worker 重新抓新版本，避免快取舊 CSS 令 Tab 圖示消失 -->
-    <link rel="stylesheet" href="styles/main.css?v=2.7.0">
+    <link rel="stylesheet" href="styles/main.css?v=2.5.0">
     <link rel="stylesheet" href="styles/icons.css?v=2.5.0">
-    <!-- styles/splash.css 已內嵌到上面嘅 <style id="splash-critical-css">，
-         呢個連結刻意移除：Splash 唔可以依賴任何外部 CSS，否則又會出現首屏黑屏。 -->
+    <link rel="stylesheet" href="styles/splash.css?v=2.5.0">
     <link rel="stylesheet" href="styles/themes/dark.css">
     <link rel="stylesheet" href="styles/themes/light.css">
     <link rel="stylesheet" href="styles/components/cards.css">
     <link rel="stylesheet" href="styles/components/buttons.css">
     <link rel="stylesheet" href="styles/components/animations.css">
     <link rel="stylesheet" href="styles/pages/menu.css">
-    <link rel="stylesheet" href="styles/pages/schedule.css?v=2.10.0">
+    <link rel="stylesheet" href="styles/pages/schedule.css">
     <link rel="stylesheet" href="styles/pages/realtime.css">
     <link rel="stylesheet" href="scripts/modules/search/search.css?v=2.5.0">
     <link rel="stylesheet" href="scripts/modules/theme/theme.css?v=2.5.0">
@@ -357,9 +58,10 @@
     <link rel="stylesheet" href="scripts/modules/weekly/weekly.css?v=2.5.0">
     <link rel="stylesheet" href="scripts/modules/holidays/holidays.css?v=2.5.0">
     <link rel="stylesheet" href="scripts/modules/expand/expand.css?v=2.5.0">
-    <link rel="stylesheet" href="scripts/modules/calendar/calendar.css?v=2.6.0">
-    <link rel="stylesheet" href="scripts/modules/profile/profile.css?v=3.33.0">
-    <link rel="stylesheet" href="scripts/modules/auth/auth.css?v=2.7.0">
+    <link rel="stylesheet" href="scripts/modules/calendar/calendar.css?v=2.5.0">
+    <link rel="stylesheet" href="scripts/modules/profile/profile.css?v=2.5.0">
+    <link rel="stylesheet" href="scripts/modules/auth/auth.css?v=2.5.0">
+    <link rel="stylesheet" href="scripts/modules/devtools/devtools.css?v=2.5.0">
     <!-- Liquid Glass 光學圖層（必須排在 main.css 之後，才能蓋過舊的玻璃塗裝） -->
     <link rel="stylesheet" href="scripts/modules/liquidglass/liquidglass.css?v=2.5.0">
 </head>
@@ -368,18 +70,9 @@
 <!-- ================= Splash Screen ================= -->
 <div id="splash-screen">
     <div class="splash-logo">
-        <!-- App Logo：黑色底 + 白色線條開啟書本（Black Background + White Line Book）
-             同一份 assets/images/app-logo.svg 亦用於 Header / Modal / PWA 圖示，維持全站一致。
-             fetchpriority=high + 固定尺寸：令瀏覽器最優先抓呢張圖，並避免載入時版面跳動。 -->
-        <img class="app-logo splash-logo__img" src="assets/images/app-logo.svg?v=2.5.0"
-             width="160" height="160" fetchpriority="high" decoding="async" alt="我的課表">
+        <!-- App Logo：黑色底 + 白色線條開啟書本（Black Background + White Line Book） -->
+        <img class="app-logo splash-logo__img" src="assets/images/app-logo.svg?v=2.5.0" alt="我的課表">
     </div>
-
-    <!-- 產地標註：純文字，零網絡請求、零圖示依賴，唔會拖慢 Splash -->
-    <div class="made-in-macau">🇲🇴 澳門製造</div>
-
-    <!-- 底部微弱提示：資料未就緒 / 無網絡 / 載入失敗時，才由 main.js 寫入文字並淡入 -->
-    <div class="splash-status" id="splash-status" role="status" aria-live="polite"></div>
 </div>
 
 <div class="phone-mockup">
@@ -435,39 +128,13 @@
                 <button class="class-prompt__btn" type="button"
                         onclick="openProfilePanel('class')">選擇班級</button>
             </div>
-            <div class="weekly-grid" id="weekly-grid-container">
-                <!-- 內嵌骨架屏：HTML 一出就已存在，唔需要等 JS／網絡。
-                     renderWeeklyGrid() 第一次渲染會整個 innerHTML 覆蓋，
-                     所以暖啟動（本機快取命中）下用戶完全見唔到骨架，
-                     只有真正等資料時（冷啟動）才會顯示，避免空白／黑屏。 -->
-                <div id="skeleton-grid" aria-hidden="true">
-                    <span class="skeleton-bar"></span>
-                    <span class="skeleton-bar"></span>
-                    <span class="skeleton-bar"></span>
-                    <span class="skeleton-bar"></span>
-                    <span class="skeleton-bar"></span>
-                    <span class="skeleton-bar"></span>
-                </div>
-            </div>
+            <div class="weekly-grid" id="weekly-grid-container"></div>
         </div>
 
         <div id="page-schedule" class="page">
-            <!-- 課表頁頂部：標題 / 副標題 / 日期選擇列
-                 標題（是日課表 / 明日課表 / X月X日 課表）與副標題（是日日期是 …）
-                 全部由 main.js updateScheduleHeader() 依選取日期即時更新。
-                 預設日期：< 15:45 顯示今日，>= 15:45 顯示明日（getDefaultSelectedDate()）。 -->
             <div class="schedule-header">
-                <div class="title" id="schedule-title-text">課表</div>
+                <div class="title" id="schedule-title-text">明日課表</div>
                 <div class="date" id="schedule-date-text">載入中...</div>
-                <!-- 日期切換列：只有「今天」與「明天」兩個按鈕。
-                     「選擇日期」chip（含透明 <input type="date">）已徹底移除：
-                     撳落去根本開唔到系統日曆，留低只會係一個假按鈕。 -->
-                <div class="schedule-datebar">
-                    <button class="schedule-chip" type="button" id="schedule-quick-today"
-                            aria-pressed="false" onclick="scheduleSelectToday()">今天</button>
-                    <button class="schedule-chip" type="button" id="schedule-quick-tomorrow"
-                            aria-pressed="false" onclick="scheduleSelectTomorrow()">明天</button>
-                </div>
             </div>
             <div class="schedule-list" id="schedule-list-container"></div>
         </div>
@@ -635,11 +302,6 @@
                 <span data-icon="chevronLeft" data-icon-size="17"></span>
             </button>
             <div class="profile-topbar__title" id="profile-topbar-title">登入</div>
-            <!-- ⚠ 呢條 bar 已經冇「⋯」掣。
-                 舊版喺呢度有個 #profile-more（只服務帳戶次頁面），
-                 但次頁面現在已經有自己嘅 .sub-page__nav + #subpage-more，
-                 兩粒「⋯」同時存在就係「一套面板兩套導覽語言」。
-                 故此處只保留關閉掣（主頁 / 登入頁用）。 -->
             <button class="profile-close" id="profile-close" type="button"
                     onclick="closeProfilePanel()" aria-label="關閉">
                 <span data-icon="close" data-icon-size="15"></span>
@@ -669,6 +331,29 @@
                 <div class="auth-alert" id="auth-alert">
                     <span class="auth-alert__icon" id="auth-alert-icon" data-icon="alert" data-icon-size="15"></span><span id="auth-alert-text"></span>
                 </div>
+
+                <!-- Google 官方按鈕掛載點 -->
+                <div class="glass-card">
+                    <div class="google-slot" id="google-slot"></div>
+
+                    <div class="client-setup" id="client-setup">
+                        <div class="client-setup__title">啟用 Google 登入（設定一次即可）</div>
+                        <ol class="client-setup__steps">
+                            <li>Google Cloud Console → APIs &amp; Services → Credentials</li>
+                            <li>建立「OAuth 用戶端 ID」，類型選「網頁應用程式」</li>
+                            <li>「已授權的 JavaScript 來源」加入 <code id="client-origin">—</code></li>
+                            <li>把 Client ID 貼到下面並儲存</li>
+                        </ol>
+                        <input id="client-id-input" class="auth-input" type="text"
+                               placeholder="xxxxxxxx.apps.googleusercontent.com" autocomplete="off">
+                        <div style="display:flex;gap:8px;margin-top:10px;">
+                            <button class="btn-mini" type="button" onclick="profileSaveClientId(false)">儲存</button>
+                            <button class="btn-mini" type="button" onclick="profileSaveClientId(true)">清除</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="auth-divider">或使用 Email</div>
 
                 <!-- 真正的 <form>：Enter 鍵也能提交，並以 novalidate 交給自訂驗證 -->
                 <form class="glass-card auth-form" id="auth-form" novalidate>
@@ -728,21 +413,10 @@
                         </div>
                     </div>
 
-                    <!-- 「記住我」＝ iOS 原生極簡勾號列（Checkmark Row）：白色圓角卡片，
-                         左邊文字標題、右邊一粒藍色剔號（見 auth.css 第 263 行起）。
-                         ⚠ 冇 Toggle Switch、冇方框 Checkbox —— 選中時右側只有一粒
-                           --ios-blue 剔號（淺色 = #007AFF），未選中時右側完全留空。
-                         ⚠ <input type="checkbox"> 必須保留：profile.js 靠 remember.checked
-                           取值，label 點擊、鍵盤 Space 切換、螢幕閱讀器報讀亦全部依賴原生控件。
-                           佢只係視覺上隱藏（1px + opacity: 0，唔用 display:none，
-                           否則會連焦點同鍵盤操作一齊殺死）。
-                         ⚠ 剔號必須排喺 input「之後」：auth.css 用 input:checked ~ .auth-check__mark
-                           嘅兄弟選擇器控制顯示，排前面就永遠唔會亮起。 -->
-                    <div class="auth-remember" id="field-remember">
+                    <div class="auth-field__row" id="field-remember">
                         <label class="auth-check">
-                            <span class="auth-check__label">記住我</span>
                             <input type="checkbox" id="auth-remember" checked>
-                            <span class="auth-check__mark" data-icon="check" data-icon-size="14" aria-hidden="true"></span>
+                            <span>記住我</span>
                         </label>
                         <button class="auth-link" type="button" onclick="profileForgotPassword()">忘記密碼？</button>
                     </div>
@@ -801,78 +475,40 @@
                 <p class="auth-footnote">班級只決定載入哪一份課表</p>
             </section>
 
-            <!-- ── 狀態 3：已登入（iOS 18 分組卡片個人主頁） ──────── -->
+            <!-- ── 狀態 3：已登入（Bento Grid 個人主頁） ──────── -->
             <section class="profile-view" id="profile-view-home">
-                <div class="ios-home">
+                <div class="bento-profile">
 
-                    <!-- ── WhatsApp 風格身份區（垂直居中，不包卡片框） ────────────
-                         由上至下四層：狀態氣泡 → 大圓頭像 → 顯示名稱（＋切換箭頭）
-                         → @handle。整區背景透明、無邊框、無彩虹光圈，靠留白區隔。
-                         下列 id 由 profile.js 的 renderProfileHome() 填入內容：
-                           #profile-hero-avatar / #profile-hero-name /
-                           #profile-hero-handle / #wa-status-text / #wa-status-icon -->
-                    <header class="wa-head">
-
-                        <!-- 頂部工具列：左＝搜尋（單顆圓掣），右＝編輯（單顆圓掣）
-                             兩邊各一顆 42px 圓掣，.wa-tools 嘅 space-between 自然對齊，
-                             左右留白與 WhatsApp 設定頁一致。
-                             ⚠ QR Code 功能已全面取消（見 service-worker 版本記錄），
-                               QR 圖示與按鈕已由 DOM 徹底移除，唔會再留低死按鈕。 -->
-                        <div class="wa-tools">
-                            <button class="wa-iconbtn" id="wa-search-btn" type="button"
-                                    onclick="profileToggleSettingsSearch()"
-                                    aria-label="搜尋設定" aria-expanded="false"
-                                    aria-controls="wa-search-bar">
-                                <span data-icon="search" data-icon-size="19"></span>
-                            </button>
-
-                            <button class="wa-iconbtn" type="button" onclick="profileOpenAccount()"
-                                    aria-label="開啟帳戶設定" title="帳戶設定">
-                                <span data-icon="pencil" data-icon-size="19"></span>
-                            </button>
-                        </div>
-
-                        <!-- 設定搜尋列：預設收起，撳放大鏡展開（再撳一次收起） -->
-                        <div class="wa-search" id="wa-search-bar" hidden>
-                            <span class="wa-search__icon" data-icon="search" data-icon-size="16" aria-hidden="true"></span>
-                            <input class="wa-search__input" id="wa-search-input" type="search"
-                                   placeholder="搜尋設定" aria-label="搜尋設定"
-                                   autocomplete="off" oninput="profileFilterSettings(this.value)">
-                            <button class="wa-search__clear" type="button" onclick="profileClearSettingsSearch()"
-                                    aria-label="清除搜尋">
-                                <span data-icon="close" data-icon-size="13"></span>
-                            </button>
-                        </div>
-
-                        <!-- 狀態氣泡：唯讀顯示，唔係字掣 —— App 未有「自訂狀態」後台，
-                             硬做一個可撳但改唔到嘢嘅氣泡就係死掣。
-                             文字由 profileStatusNow() 依「現在時間 + 今日課表 + 假期」即時計出，
-                             永遠同真實狀態一致，唔會出現寫死嘅假動態。 -->
-                        <div class="wa-avatar">
-                            <div class="wa-status" role="status">
-                                <span class="wa-status__icon" id="wa-status-icon" data-icon="clock" data-icon-size="15" aria-hidden="true"></span>
-                                <span class="wa-status__text" id="wa-status-text">—</span>
+                    <!-- 流光頭像框 -->
+                    <article class="bento-tile bento-tile--full">
+                        <div class="profile-hero">
+                            <div class="glow-avatar">
+                                <span class="glow-avatar__halo" aria-hidden="true"></span>
+                                <span class="glow-avatar__ring" aria-hidden="true"></span>
+                                <div class="glow-avatar__frame">
+                                    <img id="profile-hero-avatar" alt="用戶頭像"
+                                         src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236a5cff'/%3E%3Cstop offset='0.5' stop-color='%23ff5f9e'/%3E%3Cstop offset='1' stop-color='%2300d4ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='200' fill='url(%23g)'/%3E%3C/svg%3E">
+                                </div>
+                                <span class="glow-avatar__dot" aria-hidden="true"></span>
                             </div>
-                            <img class="wa-avatar__img" id="profile-hero-avatar" alt="用戶頭像"
-                                 src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23c7c7cc'/%3E%3Ccircle cx='100' cy='76' r='33' fill='%23ffffff'/%3E%3Cpath d='M100 122c-36 0-60 21-60 46v32h120v-32c0-25-24-46-60-46Z' fill='%23ffffff'/%3E%3C/svg%3E">
+                            <div class="profile-hero__text">
+                                <div class="profile-hero__name"><span id="profile-hero-name">—</span></div>
+                                <div class="profile-hero__meta" id="profile-hero-meta"></div>
+                                <div class="profile-hero__tags">
+                                    <span class="tag-pill" id="profile-provider-pill">已登入</span>
+                                    <span class="class-badge" id="profile-class-pill">—</span>
+                                    <button class="tag-pill tag-pill--btn" type="button"
+                                            onclick="profileOpenClassPicker()">更改班級</button>
+                                </div>
+                            </div>
                         </div>
-
-                        <!-- 顯示名稱 + 向下箭頭：整行可撳 → 切換帳號清單 -->
-                        <button class="wa-name" type="button" onclick="openProfileAccounts()"
-                                aria-label="切換帳號">
-                            <span class="wa-name__text" id="profile-hero-name">—</span>
-                            <span class="wa-name__caret" data-icon="chevronDown" data-icon-size="18" aria-hidden="true"></span>
-                        </button>
-
-                        <!-- @handle：優先用戶自訂 Handle；未設定則顯示完整電郵，低調灰字 -->
-                        <p class="wa-handle" id="profile-hero-handle">—</p>
-                    </header>
+                    </article>
 
                     <!-- 下個假期：全寬 Banner
                          左：節日 Emoji 徽章 + 大字標題（下個假期：中秋節翌日）
                          右：高亮倒數天數（還有 N 天／今天開始）
                          內容全部由 renderProfileNextHoliday() 依 holidaysData 填入 -->
-                    <article class="ios-card holiday-banner">
+                    <article class="bento-tile bento-tile--full holiday-banner">
                         <div class="holiday-banner__main">
                             <span class="holiday-banner__icon" id="stat-holiday-icon" aria-hidden="true"></span>
                             <div class="holiday-banner__body">
@@ -889,220 +525,62 @@
                         </div>
                     </article>
 
-                    <!-- ── 卡片 1：帳戶（Account） ─────────────────────────
-                         班級設定、帳號操作、同步狀態與登出全部集中喺同一張卡。
-                         ⚠ 依設計要求：每個項目只有一行主標題（灰色副標題已全部移除），
-                           卡片內部亦唔再放任何分類小標題，區塊之間只靠卡片大圓角
-                           同 .ios-home 嘅 16px 外距區隔。 -->
-                    <section class="ios-card">
-                        <div class="ios-list">
-
-                            <!-- 班級與課表設定：沿用既有班級挑選器（含裝置層偏好） -->
-                            <button class="ios-row" type="button" onclick="profileOpenClassPicker()">
-                                <span class="ios-row__icon" data-icon="school" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">班級與課表設定</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
+                    <!-- 專案展示牆 -->
+                    <article class="bento-tile bento-tile--full">
+                        <div class="bento-tile__eyebrow">專案展示牆</div>
+                        <!--
+                            圖示規則：一律以底部 TabBar 的 SVG 為唯一標準，
+                            四個 tile 必須同 TabBar 對應分頁用同一顆圖示（名字對應 icons.js 的 APP_ICON_PATHS）。
+                            ⚠ 唔可以用「意思相近」嘅其他圖示（例如週覽用 chart 柱狀圖、假期用 umbrella 雨傘），
+                            會同 TabBar 撞樣。改動前請先對照 index.html 嘅 #bottom-nav 區塊。
+                        -->
+                        <div class="wall">
+                            <!-- 週覽 → TabBar「週覽」：layoutGrid（4 個圓角正方形） -->
+                            <button class="wall-tile" type="button" onclick="profileGoTab('page-weekly')">
+                                <span class="wall-tile__icon" data-icon="layoutGrid" data-icon-size="17"></span>
+                                <span class="wall-tile__name">週覽總表</span>
+                                <span class="wall-tile__desc">一週課堂全景</span>
                             </button>
-
-                            <!-- 帳戶：推入 #profile-view-account 次頁面，裡面再分
-                                 「登入和安全」（密碼／安全通知）
-                                 同「你的帳戶」（用戶名稱／電郵地址／登出）。
-                                 ⚠ 舊版喺呢張卡片分開列「新增帳戶」「登入和安全」「你的帳號」
-                                   三行，同帳戶次頁面完全重複（同一件事兩個入口，
-                                   而且其中一個係舊式彈窗）。現依 WhatsApp 收斂成單一行，
-                                   所有帳號相關操作一律由呢度入。 -->
-                            <button class="ios-row" type="button" onclick="profileOpenAccount()">
-                                <span class="ios-row__icon" data-icon="shield" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">帳戶</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
+                            <!-- 課表 → TabBar「課表」：bookOpen（開啟的書本） -->
+                            <button class="wall-tile" type="button" onclick="profileGoTab('page-schedule')">
+                                <span class="wall-tile__icon" data-icon="bookOpen" data-icon-size="17"></span>
+                                <span class="wall-tile__name">課表檢視</span>
+                                <span class="wall-tile__desc">今日 / 明日課堂</span>
                             </button>
-
-                            <!-- 雲端同步狀態：點擊立即同步（狀態文字已由行內副標題移除，
-                                 只保留頁尾「雲端帳號系統 / 本機帳號系統」一行說明） -->
-                            <button class="ios-row" type="button" onclick="profileCloudSyncNow()">
-                                <span class="ios-row__icon" data-icon="refresh" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">雲端同步狀態</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
+                            <!-- 月曆 → TabBar「月曆」：calendarDots（月曆 + 日期點） -->
+                            <button class="wall-tile" type="button" onclick="profileGoTab('page-calendar')">
+                                <span class="wall-tile__icon" data-icon="calendarDots" data-icon-size="17"></span>
+                                <span class="wall-tile__name">月曆行程</span>
+                                <span class="wall-tile__desc">自訂事件與任務</span>
                             </button>
-
-                            <!-- 已連結裝置：標準 Push 入「已連結裝置」次頁面（#profile-view-detail），
-                                 顯示這部裝置同 Session 狀態。
-                                 ⚠ 舊版呢一行叫「已連結裝置與 Session」但 onclick 係
-                                   openProfileAccounts()，撳「裝置」實際彈出「切換帳號」清單 ——
-                                   名實不符（語意同 iOS / WhatsApp 慣例相反）。現已修正：
-                                   呢一行只負責裝置／Session，帳號切換一律由
-                                   「帳戶 → 右上⋯（profileAccountMore）」負責。
-                                 ⚠ 圖示用 devices（電腦＋手機），唔用 globe —— 地球係網絡符號。 -->
-                            <button class="ios-row" type="button" onclick="profilePushDetail('devices')">
-                                <span class="ios-row__icon" data-icon="devices" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">已連結裝置</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-
-                            <!-- 登出：依 iOS 慣例放喺卡片最後一項並用紅字；
-                                 點擊先彈確認，避免誤觸直接登出。 -->
-                            <button class="ios-row is-danger" type="button" onclick="profileLogout()">
-                                <span class="ios-row__body ios-row__body--center">
-                                    <span class="ios-row__label">登出</span>
-                                </span>
+                            <!-- 假期 → TabBar「假期」：palmtree（椰樹；嚴禁 umbrella 雨傘） -->
+                            <button class="wall-tile" type="button" onclick="profileGoTab('page-holidays')">
+                                <span class="wall-tile__icon" data-icon="palmtree" data-icon-size="17"></span>
+                                <span class="wall-tile__name">假期倒數</span>
+                                <span class="wall-tile__desc">下個連假還有多久</span>
                             </button>
                         </div>
-                    </section>
+                    </article>
 
-                    <!-- ── 卡片 2：系統偏好（System Preferences） ─────────── -->
-                    <section class="ios-card">
-                        <div class="ios-list">
-
-                            <!-- 外觀與主題：推入「外觀」子頁面（單選清單：淺色 / 深色 / 跟隨系統）。
-                                 ⚠ 舊版係一個 Modal 抽屜，卡片上下各掛一段解釋文字；
-                                    已改成標準次頁面，同密碼／電郵等頁面一樣有「‹ 返回」，
-                                    頁內亦只保留三個選項，零解釋小字。
-                                 ⚠ 唔提供「iOS 18 Liquid Glass」選項 —— 該材質係固定套用喺
-                                    底部導覽嘅視覺層（window.LiquidGlass），並唔係一套可切換嘅
-                                    data-theme 主題；強行列出只會係一個撳完冇反應嘅假選項。 -->
-                            <button class="ios-row" type="button" onclick="profilePushDetail('appearance')">
-                                <span class="ios-row__icon" data-icon="palette" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">外觀與主題</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
+                    <!-- 帳號操作 -->
+                    <article class="bento-tile bento-tile--full">
+                        <div class="bento-tile__eyebrow">帳號管理</div>
+                        <div class="action-stack">
+                            <button class="btn-ghost-block" type="button" onclick="openProfileAccounts()">
+                                切換帳號
                             </button>
-
-                            <!-- 私隱：推入「私隱」子頁面（資料可見性 / 活動狀態 / 分析數據收集）
-                                 ⚠ 舊版係 Modal 抽屜（連拖曳條、右上 ❌ 同上下兩段灰色說明），
-                                    已一律改成標準次頁面。 -->
-                            <button class="ios-row" type="button" onclick="profilePushDetail('privacy')">
-                                <span class="ios-row__icon" data-icon="lock" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">私隱</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-
-                            <!-- 儲存空間及數據：推入次頁面（用量統計 + 卡片內一列紅色「清除快取」）
-                                 ⚠ 舊版係 Modal 抽屜，而且卡片內嘅數字會被咭邊切斷
-                                    （數值同項目名嘅 flex 設定寫反咗），兩者已一併修正。 -->
-                            <button class="ios-row" type="button" onclick="profilePushDetail('storage')">
-                                <span class="ios-row__icon" data-icon="arrowsUpDown" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">儲存空間及數據</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
+                            <button class="btn-danger-block" type="button" onclick="profileLogout()">
+                                登出
                             </button>
                         </div>
-                    </section>
-
-                    <!-- ── 卡片 3：意見和幫助（Help & Support） ──────────── -->
-                    <section class="ios-card">
-                        <div class="ios-list">
-
-                            <!-- 以下三列同樣由 Modal 抽屜改成標準次頁面 -->
-                            <button class="ios-row" type="button" onclick="profilePushDetail('faq')">
-                                <span class="ios-row__icon" data-icon="help" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">常見問題</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-
-                            <button class="ios-row" type="button" onclick="profilePushDetail('feedback')">
-                                <span class="ios-row__icon" data-icon="pencil" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">回報問題 / 意見反饋</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-
-                            <button class="ios-row" type="button" onclick="profilePushDetail('contact')">
-                                <span class="ios-row__icon" data-icon="chat" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">聯絡支援</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-                        </div>
-                    </section>
-
-                    <!-- ── 卡片 4：法律與合規（Legal & Compliance） ───────── -->
-                    <section class="ios-card">
-                        <div class="ios-list">
-
-                            <!-- 四篇法律條文：全部推入次頁面，key = 'doc-' + PROFILE_LEGAL_DOCS 嘅鍵
-                                 （標題同內文由 profile-content.js 自動註冊，唔需要喺呢度抄一次）。 -->
-                            <button class="ios-row" type="button" onclick="profilePushDetail('doc-disclaimer')">
-                                <span class="ios-row__icon" data-icon="alert" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">免責聲明</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-
-                            <button class="ios-row" type="button" onclick="profilePushDetail('doc-terms')">
-                                <span class="ios-row__icon" data-icon="book" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">服務條款</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-
-                            <button class="ios-row" type="button" onclick="profilePushDetail('doc-privacy')">
-                                <span class="ios-row__icon" data-icon="lock" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">私隱政策</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-
-                            <button class="ios-row" type="button" onclick="profilePushDetail('doc-licensing')">
-                                <span class="ios-row__icon" data-icon="shield" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">條款與許可</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-                        </div>
-                    </section>
-
-                    <!-- ── 卡片 5：社群與分享（Social） ───────────────────── -->
-                    <section class="ios-card">
-                        <div class="ios-list">
-                            <button class="ios-row" type="button" onclick="profilePushDetail('invite')">
-                                <span class="ios-row__icon" data-icon="gift" data-icon-size="22"></span>
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">邀請朋友</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-                        </div>
-                    </section>
-
-                    <!-- 設定搜尋「冇結果」提示：預設隱藏，由 profileFilterSettings() 切換。
-                         放在卡片之外，唔會影響 .ios-card 嘅圓角與分隔線。 -->
-                    <p class="wa-search-empty" id="wa-search-empty" hidden>
-                        冇符合「<span id="wa-search-empty-word"></span>」嘅設定
-                    </p>
+                    </article>
                 </div>
 
-                <!-- ── 頁尾：版本號已由選單卡片移回頁面最底部 ──────────────
-                     依原本簡約風格：置中、低調灰字、無邊框、無卡片。
-                     ⚠ 開發者模式的「連點版本號 5 下 / 長按」入口已隨 devtools.js 移除，
-                       故此處 <span> 唔再帶任何點擊行為或 title 提示。
-                     ⚠ 版本文字由 profile.js 依 DB 的 APP_VERSION 動態填入（單一真實來源），
-                       下面嘅 v3.5.0 只係 JS 未執行前嘅後備值。 -->
-                <footer class="profile-footer">
-                    <p class="profile-footer__note">
-                        我的課表 · <span id="profile-storage-note">本機帳號系統</span>
-                    </p>
-                    <p class="profile-footer__version" id="app-version">v3.5.0</p>
-                </footer>
+                <!-- 連點版本號 5 下 / 長按 → 進入開發者模式 -->
+                <p class="profile-signature">
+                    我的課表 · 本機帳號系統 ·
+                    <span class="profile-version" id="app-version" title="連續點擊 5 下進入開發者模式">v2.3.0</span>
+                </p>
             </section>
 
             <!-- ── 狀態 4：切換帳號清單 ──────────────────────── -->
@@ -1116,220 +594,178 @@
             </section>
 
         </div>
-
-        <!-- ================= 全螢幕次頁面層（Full-screen Sub-page） =================
-             呢一層係「App 螢幕裡面嘅另一個螢幕」，同 iOS / WhatsApp 嘅 Push 導覽完全一樣：
-               · 100% 寬高鋪滿整個螢幕，冇浮空、冇四周留白、冇外框、冇陰影；
-               · 由右邊滑入（translateX(100%) → 0），返回時原路滑出；
-               · 自己一條 44px 導覽列：左「‹」返回、中間標題絕對居中、右「⋯」選項。
-             ⚠ 點解係 .profile-panel 嘅子節點而唔係獨立 fixed 層：
-               App 螢幕本身就係 .profile-panel（桌面預覽係 440×956 手機外框，
-               真機上佢就等於成個 viewport）。放喺入面，次頁面才會「鋪滿螢幕」
-               而唔會喺桌面預覽飛出外框；≤500px 斷點會改用 position: fixed +
-               100vw/100dvh，同真機完全一致（見 profile.css）。
-             ⚠ 呢一層只放「有自己導覽列」嘅頁面：帳戶列表頁（#profile-view-account）
-               同所有子頁面共用容器（#profile-view-detail）。
-               個人主頁 / 登入 / 選班 / 切換帳號清單仍然係 .profile-scroll 嘅內容，
-               佢哋冇 Push 導覽，唔應該被搬入嚟。 -->
-        <section class="sub-page" id="profile-subpage" aria-hidden="true">
-            <header class="sub-page__nav">
-                <div class="sub-page__nav-row">
-                    <button class="back-btn" id="subpage-back" type="button"
-                            onclick="profileBackView()" aria-label="返回">
-                        <span data-icon="chevronLeft" data-icon-size="19"></span>
-                    </button>
-                    <!-- 標題由 profile.js 嘅 profileShowView() 依 PROFILE_DETAIL_PAGES 填入；
-                         絕對居中（left: 50% + translateX(-50%)），唔受左右兩粒掣闊度影響。 -->
-                    <h1 class="sub-page__title" id="subpage-title"></h1>
-                    <button class="sub-page__more" id="subpage-more" type="button"
-                            onclick="profileMoreAction()" aria-label="更多選項" style="display: none;">
-                        <span data-icon="moreHorizontal" data-icon-size="19"></span>
-                    </button>
-                </div>
-            </header>
-
-            <!-- 內容區：唯一嘅捲動容器（原本由 .profile-scroll 負責），
-                 左右 16px 內距、上下由各頁自己嘅卡片節奏決定。 -->
-            <div class="sub-page__body" id="subpage-body">
-
-            <!-- ── 狀態 5：帳戶（WhatsApp「帳戶」次頁面） ──────────────
-                 由 profileOpenAccount() 推入（Header 鉛筆掣亦係呢一頁）。三張卡片：
-                   卡片一「登入和安全」：密碼／安全通知
-                   卡片二「你的帳戶」：用戶名稱／電郵地址
-                   卡片三（獨立單行）：登出（置中紅字、無圖示、無箭頭）
-                 ⚠ 最頂「新增帳戶」卡已依指示移除，帳號切換一律由本頁右上
-                   「⋯」（profileAccountMore → 新增 / 切換帳號）進入
-                   （主頁「已連結裝置」已改成只推入裝置／Session 子頁面）。
-                 ⚠ 每一行都推入自己嘅子頁面（#profile-view-detail），
-                   唔會再好似舊版咁一次過把所有欄位塞晒喺同一個彈窗。
-                 ⚠ 動態子標題（電郵、用戶名稱）由 renderProfileAccount() 填入。
-                 ⚠ 電郵地址只可以有一行：本 App 用電郵做帳號識別，所以佢放喺「你的帳戶」
-                   分組（即參考圖「電話號碼」嘅位置），「登入和安全」唔會再重複列出。 -->
-            <section class="profile-view" id="profile-view-account">
-                <div class="ios-home">
-
-                    <!-- ⚠ 依指示移除最頂「新增帳戶」卡：
-                         「帳戶」頁現在只有兩張分組卡（登入和安全／你的帳戶）
-                         ＋ 最底一張獨立「登出」卡，同參考圖結構一致。
-                         ⚠ 帳號切換入口冇消失：本頁右上「⋯」（profileAccountMore）
-                           嘅「新增 / 切換帳號」，所以 profileOpenAddAccount()
-                           唔會變成「冇入口」嘅死函式。
-                           ⚠ 主頁嗰行已由「已連結裝置與 Session」更正為「已連結裝置」，
-                             並且改為推入裝置／Session 子頁面，唔再負責切換帳號。 -->
-
-                    <p class="ios-group-title">登入和安全</p>
-                    <section class="ios-card">
-                        <div class="ios-list">
-                            <!-- ⚠ 依指示刪除兩行：
-                                 · 通行密鑰（passkey）：純前端離線 App 冇伺服器可以保存公鑰同
-                                   驗證簽章，呢個功能永遠都不可能生效，嗰一頁只係一段說明；
-                                 · 雙重認證（twofa）：只做到「裝置層級」嘅再次輸入密碼，
-                                   唔係伺服器端 2FA，屬不需要嘅項目。
-                                 兩者嘅 DOM、子頁面註冊（PROFILE_DETAIL_PAGES）、開關函式
-                                 （profileToggleTwoFactor）與 auth.js 嘅 twoFactor 欄位／閘門
-                                 已一併清除，唔會留低「冇入口但仲行得」嘅死碼。
-                                 「登入和安全」現時只保留：密碼、安全通知。 -->
-                            <button class="ios-row" type="button" onclick="profilePushDetail('password')">
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">密碼</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-
-                            <button class="ios-row" type="button" onclick="profilePushDetail('security')">
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">安全通知</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-                        </div>
-                    </section>
-
-                    <p class="ios-group-title">你的帳戶</p>
-                    <section class="ios-card">
-                        <div class="ios-list">
-                            <button class="ios-row" type="button" onclick="profilePushDetail('username')">
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">用戶名稱</span>
-                                    <span class="ios-row__sub" id="ios-sub-acc-username">—</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-
-                            <!-- 電郵地址：本 App 帳號以電郵識別，所以呢一行就係「帳號識別碼」
-                                 本身 —— 對應 WhatsApp「個人檔案」頁嘅電話號碼位置。
-                                 右側即時顯示目前電郵（renderProfileAccount() 填入），
-                                 點擊推入 #profile-view-detail 嘅電郵子頁面（修改 + 驗證狀態）。
-                                 ⚠ 舊版呢一行係「變更電話號碼」，但本 App 從未收集電話號碼，
-                                   嗰行只係一個說明頁，對用戶冇實際作用；現已徹底由 DOM 移除，
-                                   PROFILE_DETAIL_PAGES 嘅 phone 項與 profileDetailPhoneHtml()
-                                   亦一併刪除。 -->
-                            <button class="ios-row" type="button" onclick="profilePushDetail('email')">
-                                <span class="ios-row__body">
-                                    <span class="ios-row__label">電郵地址</span>
-                                    <span class="ios-row__sub" id="ios-sub-acc-email">—</span>
-                                </span>
-                                <span class="ios-row__chevron" aria-hidden="true"></span>
-                            </button>
-                        </div>
-                    </section>
-
-                    <!-- ── 卡片三：登出（獨立單行卡，置於最底） ──────────────
-                         依指示由「你的帳戶」卡拆出，獨立成一張單行卡片：
-                         · 文字置中：.ios-row__body--center（同主頁登出列同一套寫法）
-                         · 顏色：iOS 原生警告紅 #ff3b30（見 profile.css 嘅
-                           .ios-row.is-danger .ios-row__label）
-                         · 無圖示、無箭頭（iOS 危險操作慣例）
-                         · 點擊先推入「登出帳號」次頁面做二次確認（先前係彈模態抽屜），
-                           避免誤觸直接登出；返回鍵就係「取消」。 -->
-                    <section class="ios-card">
-                        <div class="ios-list">
-                            <button class="ios-row is-danger" type="button" onclick="profileLogout()">
-                                <span class="ios-row__body ios-row__body--center">
-                                    <span class="ios-row__label">登出</span>
-                                </span>
-                            </button>
-                        </div>
-                    </section>
-
-                </div>
-            </section>
-
-            <!-- ── 狀態 6：子頁面（共用容器，內容由 profile.js 注入） ────
-                全站唯一嘅子頁面容器：密碼／電郵地址／安全通知／用戶名稱／外觀／
-                已連結裝置／私隱／儲存空間及數據／常見問題／回報問題／聯絡支援／
-                四篇法律條文／邀請朋友／帳戶選項／登出帳號，DOM 只佔一份；
-                標題與內容由 profilePushDetail() 依 PROFILE_DETAIL_PAGES 即時注入。
-                ⚠ 舊版呢個容器只服務 5 頁，其餘內容係彈模態抽屜（#ios-sheet-overlay）；
-                  抽屜已徹底刪除，所有內容一律經呢個容器以標準 Push 動畫推入 ——
-                  同一個面板唔應該存在兩套導覽語言。
-                ⚠ 內容係由 JS 產生嘅純文字／表單，全部經 profileEscape() 處理，
-                  唔會直接拼接未轉義嘅用戶輸入。 -->
-            <section class="profile-view" id="profile-view-detail">
-                <div class="ios-home" id="profile-detail-body"></div>
-            </section>
-
-            </div>
-        </section>
     </div>
 </div>
 
 <!-- Toast 放在 overlay 之外：登入成功關閉彈窗後仍可顯示提示 -->
 <div class="profile-toast" id="profile-toast" role="status" aria-live="polite"></div>
 
-<!-- ================= 通用模態抽屜（iOS Sheet）已徹底移除 =================
-     舊版呢度有一個 #ios-sheet-overlay 抽屜（拖曳條 + 右上 ❌），
-     由 profile.js 的 profileOpenSheet() 注入私隱、儲存空間、FAQ、回報問題、
-     聯絡支援、四篇法律條文、邀請朋友等內容。
-     ⚠ 已全部改成 #profile-view-detail 嘅標準 Push 次頁面（見上面「狀態 6」），
-       原因：同一層設定同時有「彈窗」同「推入」兩套導覽語言，用戶會唔知
-       撳返回鍵會去邊；而且彈窗會蓋住整個畫面，違反 iOS 設定頁慣例。
-     ⚠ 唔要再喺呢度加返任何 overlay / dialog 容器 —— 需要新頁面就加
-       PROFILE_DETAIL_PAGES 一項，路由會自己處理。 -->
+<!-- 新增事件彈窗（Google Calendar 風格，喺 .phone-mockup 外面） -->
+<div class="gcal-modal-overlay" id="add-calendar-event-modal" style="display: none;" onclick="closeAddCalendarEventModal(event)">
+    <div class="gcal-modal" onclick="event.stopPropagation()">
 
+        <div class="gcal-modal-header">
+            <div class="gcal-drag-handle"></div>
+            <button class="gcal-close-btn" onclick="closeAddCalendarEventModal()" aria-label="關閉">
+                <span data-icon="close" data-icon-size="15"></span>
+            </button>
+        </div>
 
-<!-- ================= 開發者模式已徹底移除 =================
-     舊版本曾提供「開發者數據管理中心」（連點版本號 5 下 / 長按 / Ctrl+Shift+D / FAB），
-     惟該機制屬純前端字串比對：密碼常數直接寫在 devtools.js 內，
-     任何人開啟原始碼或改寫 localStorage 的 dev_mode_enabled 即可取得全部資料寫入權。
-     為杜絕未授權操作，已連同 DOM、樣式、腳本、鍵盤快捷鍵與 localStorage 旗標一併刪除，
-     官方假期改為永久唯讀（見 db.js 的 DB_READONLY_COLLECTIONS）。 -->
+        <div class="gcal-title-section">
+            <input type="text" id="calendar-event-title" class="gcal-title-input" placeholder="新增標題與時間">
+            <div class="gcal-title-underline"></div>
+        </div>
+
+        <div class="gcal-type-pills">
+            <button class="gcal-pill active" data-type="exam" onclick="selectEventType('exam')">
+                <span class="gcal-pill-icon" data-icon="clipboard" data-icon-size="15"></span> 事件
+            </button>
+            <button class="gcal-pill" data-type="homework" onclick="selectEventType('homework')">
+                <span class="gcal-pill-icon" data-icon="book" data-icon-size="15"></span> 任務
+            </button>
+        </div>
+
+        <div class="gcal-options-list">
+
+            <div class="gcal-option-item">
+                <div class="gcal-option-icon" data-icon="clock" data-icon-size="18"></div>
+                <div class="gcal-option-content">
+                    <input type="date" id="calendar-event-date" class="gcal-date-input">
+                    <div class="gcal-option-subtitle" id="gcal-date-display">選擇日期</div>
+                </div>
+                <button class="gcal-add-time-btn">Add time</button>
+            </div>
+
+            <div class="gcal-option-item gcal-option-disabled">
+                <div class="gcal-option-icon" data-icon="users" data-icon-size="18"></div>
+                <div class="gcal-option-content">
+                    <div class="gcal-option-title">新增參與者</div>
+                </div>
+            </div>
+
+            <div class="gcal-option-item gcal-option-disabled">
+                <div class="gcal-option-icon" data-icon="video" data-icon-size="18"></div>
+                <div class="gcal-option-content">
+                    <div class="gcal-option-title">新增視訊會議</div>
+                </div>
+            </div>
+
+            <div class="gcal-option-item gcal-option-disabled">
+                <div class="gcal-option-icon" data-icon="pin" data-icon-size="18"></div>
+                <div class="gcal-option-content">
+                    <div class="gcal-option-title">新增地點</div>
+                </div>
+            </div>
+
+            <div class="gcal-option-item gcal-option-disabled">
+                <div class="gcal-option-icon" data-icon="alignLeft" data-icon-size="18"></div>
+                <div class="gcal-option-content">
+                    <div class="gcal-option-title">新增描述或附件</div>
+                </div>
+            </div>
+
+            <div class="gcal-option-item gcal-option-disabled">
+                <div class="gcal-option-icon" data-icon="calendar" data-icon-size="18"></div>
+                <div class="gcal-option-content">
+                    <div class="gcal-option-title">我的課表</div>
+                    <div class="gcal-option-subtitle">預設提醒：準時</div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="gcal-footer">
+            <button class="gcal-more-btn">更多選項</button>
+            <button class="gcal-save-btn" onclick="saveCalendarEvent()">儲存</button>
+        </div>
+
+        <input type="hidden" id="calendar-event-type" value="exam">
+
+    </div>
+</div>
+
+<!-- ================= 開發者數據管理中心（Developer / Admin Dashboard） =================
+     入口：連點版本號 5 下 / 長按版本號 / Ctrl + Shift + D
+     平時完全隱藏，唔會影響正常使用 -->
+<div class="dev-overlay" id="dev-overlay" aria-hidden="true" role="dialog" aria-label="開發者數據管理中心">
+    <div class="dev-shell">
+
+        <div class="dev-top">
+            <div class="dev-brand">
+                <span data-icon="sliders" data-icon-size="18"></span> 開發者數據管理中心
+                <span class="dev-brand__badge" id="dev-version-badge">DB</span>
+            </div>
+            <div class="dev-top__spacer"></div>
+            <div class="dev-top__actions">
+                <button type="button" class="dev-btn" onclick="devExportAll()" title="把全部集合匯出成 JSON 檔">
+                    <span data-icon="download" data-icon-size="15"></span> 匯出 JSON
+                </button>
+                <button type="button" class="dev-btn" onclick="devImportClick()" title="由 JSON 檔匯入資料">
+                    <span data-icon="upload" data-icon-size="15"></span> 匯入 JSON
+                </button>
+                <button type="button" class="dev-btn dev-btn--danger" onclick="devResetAll()" title="清除所有本機覆寫，回到預設 JSON">
+                    <span data-icon="refresh" data-icon-size="15"></span> 重置全部
+                </button>
+                <button type="button" class="dev-btn" onclick="devDisable()" title="關閉開發者模式">
+                    <span data-icon="lock" data-icon-size="15"></span> 鎖定
+                </button>
+                <button type="button" class="dev-btn dev-btn--ghost dev-btn--icon" onclick="devClose()" aria-label="關閉">
+                    <span data-icon="close" data-icon-size="15"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="dev-tabs" id="dev-tabs"></div>
+
+        <div class="dev-main" id="dev-body"></div>
+
+        <div class="dev-foot">
+            <div class="dev-status" id="dev-status"></div>
+            <button type="button" class="dev-btn" id="dev-discard" onclick="devDiscard()">
+                <span data-icon="undo" data-icon-size="15"></span> 放棄變更
+            </button>
+            <button type="button" class="dev-btn dev-btn--primary" id="dev-save" onclick="devSaveAll()" disabled>
+                <span data-icon="save" data-icon-size="15"></span> 保存並套用
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<!-- 開發者模式開啟後的浮動入口 -->
+<button type="button" class="dev-fab" id="dev-fab" aria-label="開啟開發者面板">
+    <span data-icon="sliders" data-icon-size="20"></span>
+</button>
+
+<!-- 提示訊息 -->
+<div class="dev-toast" id="dev-toast" role="status" aria-live="polite"></div>
+
+<!-- 匯入用的隱藏檔案輸入 -->
+<input type="file" id="dev-import-file" accept="application/json,.json" hidden>
 
 <script src="scripts/utils/storage.js?v=2.5.0"></script>
 <!-- 統一 SVG 圖示系統：全站嚴禁 Emoji，所有圖示由此產生 -->
-<script src="scripts/utils/icons.js?v=2.12.0"></script>
+<script src="scripts/utils/icons.js?v=2.5.0"></script>
 <!-- DataManager：App 唯一資料存取層（localStorage 優先 → 靜態 JSON 後備） -->
-<script src="scripts/utils/db.js?v=3.2.0"></script>
-<script src="scripts/config/auth-config.js?v=2.7.1"></script>
-<!-- 應用設定：正式網域（siteUrl）。分享／邀請連結一律以此為根，
-     避免在本機開發時產生 127.0.0.1 / localhost 嘅邀請連結 -->
-<script src="scripts/config/app-config.js?v=1.0.0"></script>
-<script src="scripts/modules/theme/theme.js?v=2.6.0"></script>
-<script src="scripts/modules/weekly/weekly.js?v=2.5.1"></script>
+<script src="scripts/utils/db.js?v=2.5.0"></script>
+<script src="scripts/config/auth-config.js?v=2.5.0"></script>
+<script src="scripts/modules/theme/theme.js?v=2.5.0"></script>
+<script src="scripts/modules/weekly/weekly.js?v=2.5.0"></script>
 <script src="scripts/modules/holidays/holidays.js?v=2.5.0"></script>
 <script src="scripts/modules/animations/animations.js?v=2.5.0"></script>
 <script src="scripts/modules/expand/expand.js?v=2.5.0"></script>
-<script src="scripts/modules/calendar/calendar.js?v=2.7.0"></script>
-<!-- 雲端同步層：Google Sheets（via Apps Script）。必須排在 auth.js 之前，
-     因為 auth.js 的註冊／登入會用到 cloudRegisterAccount / cloudSignIn -->
-<script src="scripts/modules/auth/cloud.js?v=1.1.0"></script>
-<script src="scripts/modules/auth/auth.js?v=2.10.0"></script>
-<!-- 個人中心靜態內容（FAQ / 四篇法律條文 / 支援電郵）：
-     純資料、無邏輯，必須排在 profile.js 之前，讓 profile.js 直接取用 -->
-<script src="scripts/modules/profile/profile-content.js?v=1.2.1"></script>
-<script src="scripts/modules/profile/profile.js?v=3.32.0"></script>
+<script src="scripts/modules/calendar/calendar.js?v=2.5.0"></script>
+<script src="scripts/modules/auth/auth.js?v=2.5.0"></script>
+<script src="scripts/modules/profile/profile.js?v=2.5.0"></script>
+<script src="scripts/modules/devtools/devtools.js?v=2.5.0"></script>
 <!-- Liquid Glass 引擎：以 backdrop-filter + SVG 折射濾鏡實作，離線可用、無 CDN 依賴 -->
 <script src="scripts/modules/liquidglass/liquidglass.js?v=2.5.0"></script>
-<script src="scripts/main.js?v=3.9.0"></script>
+<script src="scripts/main.js?v=2.5.0"></script>
 
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        // ⚠ service-worker.js 這裡的 ?v= 必須同 service-worker.js 內的 CACHE_NAME 同步升版。
-        // 原因：SW 對 CSS / JS 係「快取優先」，而 caches.match() 以「完整 URL（含 ?v=）」為 key。
-        // 只要唔升呢個版本號，舊 main.js / schedule.css 就會永遠由快取派出去，
-        // 改幾多次代碼用戶都見唔到，睇落就好似「產出完全無效」。
-        navigator.serviceWorker.register('service-worker.js?v=3.40.0')
+        navigator.serviceWorker.register('service-worker.js?v=2.5.0')
             .then((registration) => {
                 console.log('Service Worker 註冊成功:', registration.scope);
                 // 主動檢查有無新版本，避免一直派舊快取
