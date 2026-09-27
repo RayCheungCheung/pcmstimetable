@@ -1,0 +1,176 @@
+# ============================================================================
+#  我的課表 · HTTP 安全標頭（Cloudflare Pages / Netlify 專用）
+# ----------------------------------------------------------------------------
+#  放置位置：專案根目錄，檔名就叫 `_headers`（無副檔名）。
+#
+#  平台支援度：
+#    ✅ Cloudflare Pages  —— 原生支援 `_headers`
+#    ✅ Netlify           —— 原生支援 `_headers`
+#    ❌ Vercel            —— 唔支援 `_headers`，要用 vercel.json 的 "headers" 欄位
+#                            （內容相同，格式不同，見檔案最尾附錄）
+#
+#  ⚠ 生效前提：本檔只在「部署後」生效。本機開 file:// 或 python -m http.server
+#    係睇唔到任何標頭嘅，唔好用本機結果判斷設定對錯。
+# ============================================================================
+
+
+# ============================================================================
+#  1. 全站預設標頭
+# ============================================================================
+
+/*
+  # ---------------------------------------------------------------------------
+  #  Content-Security-Policy
+  # ---------------------------------------------------------------------------
+  #  白名單係逐項實測得出，唔係照抄範本：
+  #
+  #   script-src 'self' ................... 所有 JS 都係本機檔案
+  #              https://cdn.jsdelivr.net .. 唯一的 CDN，載 supabase-js（index.html）
+  #
+  #   ⚠ 'unsafe-inline' 係必要之惡，唔可以刪。
+  #     本專案目前有 46 處 inline onclick（index.html）+ 15 處由 JS 以字串產生嘅
+  #     inline onclick（profile.js 等），另外 index.html 有 7 處 style="…" 屬性。
+  #     一旦移除 'unsafe-inline'，CSP 會攔下全部事件處理器 ——
+  #     所有按鈕、登入表單、設定頁會即時「全部㩒唔到」，而且 console 只會出
+  #     「Refused to execute inline event handler」。
+  #
+  #     想要真正嚴格的 CSP，必須先做代碼重構（見本檔第 3 節），
+  #     唔可以靠改呢一行達成。
+  #
+  #   connect-src ....... 只准連自己 + 你自己的 Supabase 專案
+  #                       刻意唔寫 https://*.supabase.co（見下方註解）
+  #
+  #   img-src ........... data: 係必須的：頭像以 Base64 dataURL 儲存
+  #                       https: 係必須的：頭像允許遠端圖片網址
+  #
+  #   object-src 'none' . 封鎖 <embed>/<object>/<applet>（Flash 時代殘留攻擊面）
+  #   base-uri 'none' ... 防止攻擊者注入 <base> 劫持所有相對路徑請求
+  #   frame-ancestors ... 現代版的 X-Frame-Options（防 Clickjacking）
+  # ---------------------------------------------------------------------------
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://ioiofueydpfkwjmyqejp.supabase.co; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'; upgrade-insecure-requests
+
+  # 防 Clickjacking。
+  # ⚠ 同上面 CSP 的 frame-ancestors 'none' 係重複保險：現代瀏覽器睇 CSP，
+  #    舊瀏覽器睇 X-Frame-Options。兩者都寫，唔會衝突。
+  X-Frame-Options: DENY
+
+  # 禁止瀏覽器「猜測」MIME 類型。
+  # 冇呢個標頭，一個 .png 檔可以被當成 HTML 執行，直接繞過上傳白名單。
+  X-Content-Type-Options: nosniff
+
+  # 跨站時只送 origin，唔送完整路徑。
+  # 本 App 的網址含 ?invite=<id>，用 no-referrer 會更嚴，但會影響部分分析工具；
+  # strict-origin-when-cross-origin 係「同源全送、跨源只送域名」的平衡點。
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # 強制 HTTPS，為期一年。preload 代表你願意被收錄進瀏覽器內建清單。
+  # ⚠ 一旦 preload 生效，要撤回非常麻煩，確認 pcmstimetable.com 永久用 HTTPS 才加。
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+
+  # 關閉本 App 完全用不到的硬體與 API 權限。
+  # 即使未來出現 XSS，攻擊者也無法靜靜開啟鏡頭或讀取定位。
+  Permissions-Policy: accelerometer=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), xr-spatial-tracking=()
+
+  # 禁止其他網站用 <script>/<img> 方式內嵌並讀取本 App 的資源。
+  Cross-Origin-Resource-Policy: same-origin
+
+  # 把 window.opener 切斷，防止被惡意頁面反向控制（Tabnabbing）。
+  Cross-Origin-Opener-Policy: same-origin
+
+  # 停用 Adobe Flash / PDF 的跨域策略檔查詢（殘留攻擊面）。
+  X-Permitted-Cross-Domain-Policies: none
+
+  # ⚠ 刻意「唔設定」Cross-Origin-Embedder-Policy: require-corp。
+  #    原因：COEP 會要求所有子資源帶 CORP 標頭，而 cdn.jsdelivr.net 的
+  #    supabase-js 請求若被判定為不合法，會直接被封鎖 → 整個 App 無法初始化登入。
+  #    除非你先改成本機託管 supabase-js，否則唔好開 COEP。
+
+
+# ============================================================================
+#  2. 分路徑快取策略
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+#  Service Worker：絕對唔可以被快取
+# ----------------------------------------------------------------------------
+#  為什麼：SW 負責決定「邊個資源用快取」。如果 SW 本體自己被瀏覽器 HTTP 快取住，
+#  你就永遠派唔出新版 SW，即使你已經升咗 CACHE_NAME 都冇用。
+#  呢個係 PWA 最常見的「改極都唔生效」死因。
+/service-worker.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
+
+# ----------------------------------------------------------------------------
+#  入口 HTML：唔可以長快取
+# ----------------------------------------------------------------------------
+#  為什麼：index.html 內含所有 <script src="…?v=x.y.z"> 的版本號。
+#  如果 HTML 被快取，用戶會一直載入舊版本號 → 配合 SW 的快取優先策略，
+#  就會卡死在舊代碼。呢個專案已經在 service-worker.js 版本記錄中反覆踩過。
+/
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+# ----------------------------------------------------------------------------
+#  靜態資產：可以長快取
+# ----------------------------------------------------------------------------
+#  因為所有 CSS/JS 都帶 ?v=<版本>，圖示檔名也是固定的，內容變更必然伴隨改名或升版，
+#  所以用 immutable 唔會導致用戶卡舊版。
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# ============================================================================
+#  3. 附錄：如何真正移除 'unsafe-inline'（未來重構目標）
+# ----------------------------------------------------------------------------
+#  目標 CSP（重構完成後才可用）：
+#    script-src 'self' https://cdn.jsdelivr.net;
+#    style-src  'self';
+#
+#  需要的重構步驟：
+#    1. 移除 index.html 全部 46 處 onclick="…"，改用事件委派：
+#         document.addEventListener('click', (e) => {
+#             const el = e.target.closest('[data-act]');
+#             if (el) ACTIONS[el.dataset.act]?.(el, e);
+#         });
+#       並把 onclick="profileToggleSettingsSearch()" 改成
+#         data-act="profile-toggle-settings-search"
+#
+#    2. 移除 profile.js 等處以 HTML 字串產生嘅 15 處 onclick，
+#       同樣改用 data-act 屬性 + 上面的委派表。
+#
+#    3. 移除 index.html 的 7 處 style="…"，改為對應的 CSS class。
+#       （注意：用 JS 設定的 el.style.xxx 屬 CSSOM，唔受 style-src 管制，唔需要改。）
+#
+#    4. 完成後，把本檔第 1 節 CSP 的 'unsafe-inline' 兩處刪除，
+#       並升 service-worker.js 的 CACHE_NAME + index.html 的 ?v=。
+#
+#  ⚠ 唔好只做一半：script-src 拎走 'unsafe-inline' 但 style-src 冇拎，
+#    或者只改咗 index.html 冇改 profile.js 產生的字串，
+#    都會造成「部分按鈕失效」的隱蔽 bug（只在特定操作路徑出現）。
+#
+# ============================================================================
+#  附錄 B：Vercel 版（vercel.json）
+# ----------------------------------------------------------------------------
+#  Vercel 唔讀 `_headers`，要改成：
+#
+#  {
+#    "headers": [
+#      {
+#        "source": "/(.*)",
+#        "headers": [
+#          { "key": "Content-Security-Policy", "value": "…同上…" },
+#          { "key": "X-Frame-Options", "value": "DENY" },
+#          { "key": "X-Content-Type-Options", "value": "nosniff" },
+#          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+#        ]
+#      },
+#      {
+#        "source": "/service-worker.js",
+#        "headers": [
+#          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+#        ]
+#      }
+#    ]
+#  }
+# ============================================================================

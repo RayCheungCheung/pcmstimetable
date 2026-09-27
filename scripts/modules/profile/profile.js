@@ -86,9 +86,27 @@ function profileInitialAvatar(name) {
     return 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
 
+/**
+ * 帳號 → 可安全放進 <img src="…"> 的頭像字串。
+ *
+ * ⚠ 為什麼一定要在這裡把關（而不是只在寫入雲端時）：
+ *   本函式有四個呼叫點，其中三個係 innerHTML 字串拼接
+ *   （header-user__avatar / acc-item__avatar ×2）。頭像值若含雙引號，
+ *   就可以跳出 src 屬性注入任意標籤 —— XSS。
+ *   值嘅來源唔止雲端：Console、匯入備份、舊版本殘留資料都會寫入本機，
+ *   所以只喺雲端邊界淨化係唔夠嘅，渲染前必須再確認一次。
+ *
+ * ⚠ 單一真相：scheme 白名單只有一份，在 cloud.js 的 sbCleanAvatar()。
+ *   這裡只負責「呼叫它」＋「唔通過就退回姓名首字母 SVG」，
+ *   避免同一套規則在兩個檔案各寫一次而日後走樣。
+ *   （cloud.js 在 index.html 中排在 profile.js 之前，故必定已載入。）
+ */
 function profileAvatarSrc(account) {
     if (!account) return profileInitialAvatar('?');
-    return account.avatar || account.avatarUrl || profileInitialAvatar(account.name);
+    const raw = account.avatar || account.avatarUrl;
+    if (!raw) return profileInitialAvatar(account.name);
+    const safe = (typeof sbCleanAvatar === 'function') ? sbCleanAvatar(raw) : '';
+    return safe || profileInitialAvatar(account.name);
 }
 
 // 將檔案中央裁切成正方形並壓成 JPEG，避免頭像撐爆 localStorage
@@ -546,7 +564,12 @@ function profileAuthProblem(payload, isSignup) {
     if (!payload.email) return { id: 'auth-email-input', message: '請輸入 Email' };
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return { id: 'auth-email-input', message: 'Email 格式不正確' };
     if (!payload.password) return { id: 'auth-password-input', message: '請輸入密碼' };
-    if (payload.password.length < 6) return { id: 'auth-password-input', message: '密碼至少 6 個字元' };
+    // 長度下限與 auth.js 的 authPasswordCheck() 共用同一個來源，
+    // 避免前端提示「至少 6 個字元」但實際要求 8 個咁前後矛盾。
+    const minLength = typeof authPasswordMinLength === 'function' ? authPasswordMinLength() : 6;
+    if (payload.password.length < minLength) {
+        return { id: 'auth-password-input', message: '密碼至少 ' + minLength + ' 個字元' };
+    }
     if (isSignup && !payload.confirm) return { id: 'auth-confirm-input', message: '請再輸入一次密碼' };
     if (isSignup && payload.confirm !== payload.password) return { id: 'auth-confirm-input', message: '兩次輸入的密碼不一致' };
     return null;
@@ -622,6 +645,10 @@ async function profileSubmitAuth() {
             if (result.reason === 'NO_ACCOUNT') {
                 profileToast('帳號不存在，請先切換至註冊');
             }
+            // 帳號建立了但未完成信箱驗證 → 唔算登入成功，要清楚指示下一步
+            if (result.reason === 'NO_CONFIRM') {
+                profileToast('請到信箱點擊確認連結後再登入');
+            }
             // 逾時／連線失敗 → 講明已轉離線，避免用戶誤以為自己打錯密碼
             if (result.reason === 'TIMEOUT' || result.offline) {
                 // 真正切換狀態標籤。否則「已切換至離線模式」只係一句空話。
@@ -633,16 +660,24 @@ async function profileSubmitAuth() {
             return;
         }
 
+        // 註冊成功但 Supabase 要求先驗證信箱 → 未有 session，唔可以當作已登入
+        if (result.pendingConfirmation) {
+            profileResetAuthForm();
+            profileShowAlert('auth', '確認信已寄到 ' + (result.email || payload.email) + '，請點擊信中連結後再登入', 'ok');
+            profileToast('請到信箱完成驗證後再登入');
+            return;
+        }
+
         profileResetAuthForm();
         renderCloudPill();
 
-        // 註冊時斷網 → 帳號已存本機，上線後自動補送到雲端，要明確講清楚
-        if (result.cloudOffline) {
-            profileToast('已建立帳號（離線）：連線後會自動同步到雲端');
-        } else if (result.offlineFallback) {
+        // 離線登入（本機快取放行）→ 明確提示目前係離線狀態
+        if (result.offlineFallback) {
             if (typeof cloudSetPhase === 'function') cloudSetPhase('offline');
             renderCloudPill();
-            profileToast('雲端連線逾時，已切換至離線模式');
+            profileToast(result.offlineNoVerify
+                ? '離線模式：已用本機登入憑證進入，連線後會自動校驗'
+                : '雲端連線逾時，已切換至離線模式');
         }
 
         await profileAfterAuth(result.account, result.isNew);
@@ -1439,7 +1474,7 @@ function profileSwitchRowHtml(id, label, desc, on, handler) {
 }
 
 function profileProviderLabel(provider) {
-    if (provider === 'email') return '電郵帳號（本機）';
+    if (provider === 'email') return '電郵帳號（雲端）';
     if (provider === 'google') return 'Google 帳號（預留）';
     return '本機帳號';
 }
@@ -1478,7 +1513,7 @@ function renderCloudPill() {
 /** 點擊狀態標籤：立即同步一次 */
 async function profileCloudSyncNow() {
     if (typeof cloudSyncNow !== 'function' || typeof cloudEnabled !== 'function' || !cloudEnabled()) {
-        profileToast('雲端同步未啟用（請在 auth-config.js 填寫 endpoint）');
+        profileToast('雲端同步未啟用（請在 auth-config.js 填寫 Supabase URL 與 Publishable key）');
         return;
     }
 
@@ -1634,7 +1669,16 @@ function profileDetailLogoutHtml() {
 
 /** 用戶確認後才真正登出 */
 async function profileConfirmLogout() {
-    authSignOut();
+    // ⚠ 用 authSignOutSecure()，唔用 authSignOut()：
+    //   前者會 await 雲端撤銷，並銷毀本機續期權杖；
+    //   後者係 fire-and-forget 且刻意保留續期權杖（供帳號切換免密碼）。
+    //   使用者主動登出屬於「唔應該留痕」的路徑，見 auth.js 的說明。
+    const cloudOn = (typeof cloudEnabled === 'function') && cloudEnabled();
+
+    // 若雲端撤銷失敗（離線／逾時），authSignOutSecure 仍會完成本機清理，
+    // 並回報 revoked = false，下面據此顯示誠實的提示。
+    const result = await authSignOutSecure();
+
     renderProfileHeader();
 
     await profileApplyAccountSchedule(null);
@@ -1643,7 +1687,14 @@ async function profileConfirmLogout() {
     profileSetAuthMode('signin');
     profileOnboarding = false;
     profileShowView('auth');
-    profileToast('已登出帳號');
+
+    // ⚠ 提示必須反映真實結果：撤銷失敗時唔可以照講「已登出帳號」，
+    //   否則使用者會誤以為雲端 session 已經消失（實際上仲有效至過期為止）。
+    if (!cloudOn || (result && result.revoked)) {
+        profileToast('已登出帳號');
+    } else {
+        profileToast('已清除本機登入狀態（離線，雲端憑證將於下次連線時失效）');
+    }
 }
 
 function openProfileAccounts() {
@@ -1796,7 +1847,16 @@ function profileOpenAccount() {
  *    畫面雜亂；依「介面不留任何解釋性小字」嘅指示，
  *    改成 iOS 原生嘅右對齊數值列 .ios-row__value（同 .detail-stat 同一套語言）。
  *    所以傳入嘅一律係「無需驗證 / 不可以」呢類短值，
- *    唔可以再傳「本版本只在本機保存登入狀態」呢種說明句。 */
+ *    唔可以再傳「本版本只在本機保存登入狀態」呢種說明句。
+ *  ⚠ 呢個函式永遠唔會輸出額外屬性。曾有一段時間有第三個參數 attrs
+ *    （用嚟掛開發者模式嘅 data-dev-version 標記），隨該入口搬去「開發者簡介」
+ *    之後刪走。
+ *    ⚠ 開發者模式入口而家搬返頁尾版本號，但嗰個標記係寫死喺 index.html
+ *      嘅靜態 <p id="app-version"> 上，唔會、亦唔應該經呢個函式輸出 ——
+ *      唔好見到入口回歸就以為要還原呢個參數。
+ *    ⚠ 唔好因為「方便」而加返一個可以傳屬性字串嘅參數：嗰種參數冇得轉義，
+ *      一旦有人傳入來自網絡或使用者嘅值，就即刻係一個 XSS 入口。
+ *      真係需要掛屬性嘅話，應該由呼叫端自行包一層再渲染。 */
 function profileInfoRowHtml(label, value) {
     return '<div class="ios-row" role="note">' +
         '<span class="ios-row__body">' +
@@ -1806,7 +1866,17 @@ function profileInfoRowHtml(label, value) {
         '</div>';
 }
 
-/** 一列可撳嘅導覽項目（右側箭頭；danger = 紅字、依 iOS 慣例冇箭頭） */
+/** 一列可撳嘅導覽項目（右側箭頭；danger = 紅字、依 iOS 慣例冇箭頭）
+ *  ⚠ 呢個函式「冇」左側圖示：次頁面嘅跳轉列一向都冇圖示，而且本專案
+ *    圖示一律由 icons.js 註冊表 ＋ data-icon 屬性描述，再由 hydrateIcons()
+ *    水合成單色線條 SVG（硬寫 <i class="icon-user"> 攞唔到 stroke: currentColor，
+ *    深淺主題會走音）。
+ *  ⚠ 舊版曾經有一個選用嘅第 5 參數 icon，係為「關於我們」頁成員卡嘅社交列
+ *    （Instagram／GitHub）而加。該等社交連結已改成卡片右側嘅橫向 Icon 掣
+ *    （見 profileDevMemberHtml），全專案再冇呼叫點傳第 5 個參數，故刪除 ——
+ *    留一個永遠唔會被填嘅參數，只會令人以為仲有地方靠佢 render 圖示。
+ *    若日後真係要清單列帶圖示，正確做法係新增一個獨立嘅 renderer，
+ *    而唔係喺呢度開一個免轉義嘅屬性拼接入口。 */
 function profileNavRowHtml(label, sub, handler, danger) {
     return '<button class="ios-row' + (danger ? ' is-danger' : '') + '" type="button" ' +
         'onclick="' + handler + '">' +
@@ -1863,6 +1933,13 @@ const PROFILE_DETAIL_PAGES = {
     contact: { title: '聯絡支援', html: profileDetailContactHtml },
     // after：唔支援系統分享嘅瀏覽器要移除「系統分享」列
     invite: { title: '邀請朋友', html: profileDetailInviteHtml, after: profileSyncInviteShare },
+    // ⚠ about 嘅入口喺「社群與分享」卡片（同邀請朋友同一張卡），本身唔屬於帳號設定；
+    //   但主選單只會在已登入時才顯示（見 openProfilePanel()：未登入會先去 auth／accounts），
+    //   所以照樣走 profilePushDetail() 嘅登入檢查，同隔離「聯絡支援」等頁一致，唔需要開特例。
+    about: { title: '關於我們', html: profileDetailAboutHtml },
+    // ⚠ 舊版嘅 developer（「開發者簡介」次頁面）已按需求整頁刪除，唔好加返：
+    //   成員卡已直接嵌入「關於我們」頁，而原本喺該頁尾嘅「開發者模式」入口
+    //   亦已搬返「個人中心」頁尾嘅版本號（連點 5 下，見 devtools.js 開頭說明）。
     // 帳號層級動作（帳戶頁右上「⋯」）同登出確認
     accountMore: { title: '帳戶選項', html: profileDetailAccountMoreHtml },
     logout: { title: '登出帳號', html: profileDetailLogoutHtml }
@@ -1926,7 +2003,8 @@ async function profileChangePassword() {
     const confirm = profileVal('detail-pwd-confirm');
 
     if (!current) { profileToast('請輸入目前密碼'); return; }
-    if (next.length < 6) { profileToast('新密碼至少需要 6 個字元'); return; }
+    const minLength = typeof authPasswordMinLength === 'function' ? authPasswordMinLength() : 6;
+    if (next.length < minLength) { profileToast('新密碼至少需要 ' + minLength + ' 個字元'); return; }
     if (next !== confirm) { profileToast('兩次輸入的新密碼不一致'); return; }
     if (next === current) { profileToast('新密碼不可與目前密碼相同'); return; }
 
@@ -1944,17 +2022,28 @@ async function profileChangePassword() {
     profileToast('密碼已更新');
 }
 
-/** 變更電郵：同步更新子頁面與帳戶列表頁狀態 */
-function profileUpdateEmail() {
+/**
+ * 變更電郵：同步更新子頁面與帳戶列表頁狀態。
+ * ⚠ Email 同時係雲端登入身分，必須等 Supabase 回應（非同步），
+ *   而且預設要先經確認信驗證，所以分三種結果處理。
+ */
+async function profileUpdateEmail() {
     const account = authGetCurrentAccount();
     if (!account) {
         profileToast('請先登入帳號');
         return;
     }
 
-    const result = authUpdateEmail(account.id, profileVal('detail-email'));
+    const result = await authUpdateEmail(account.id, profileVal('detail-email'));
     if (!result.ok) {
         profileToast(result.error || '電郵更新失敗');
+        return;
+    }
+
+    // 需要在信箱點確認連結：本機 Email 保持原狀（雲端亦未改），
+    // 否則本機與雲端唔一致，使用者下次會登入唔到。
+    if (result.pendingConfirmation) {
+        profileToast('確認信已寄到 ' + result.email + '，請點擊信中連結完成變更');
         return;
     }
 
@@ -2637,11 +2726,198 @@ async function profileShareInvite() {
     profileCopyText(link, '此裝置不支援系統分享，已複製連結');
 }
 
+/**
+ * 「關於我們」次頁面。
+ * ⚠ 版面依需求只有兩部分，唔好加返其他嘢：
+ *   1) 頂部「App 資訊」：App 名稱 ＋ 簡介 ＋ 版本號（全部喺同一個
+ *      .detail-callout 入面）；
+ *   2) 開發者卡片：全頁唯一一張白色大卡，由 PROFILE_DEVELOPER_MEMBERS 驅動，
+ *      卡內順序為 區塊標題 → 成員（垂直排列）→ 頁尾致敬標語。
+ *      ⚠ 舊版係「每位成員各自一張 .ios-card」：幾張同款卡片疊埋一齊，
+ *        睇落仍然係一列清單項，只係換咗皮膚 —— 呢個正是今次改版要擺脫嘅觀感。
+ *        新版改成「一張卡裝晒所有成員」，成員之間用 1px 橫線分隔，
+ *        卡內所有內容水平置中，視覺上係一塊板而唔係一疊卡。
+ *      ⚠ 卡內唔可以再出現 .ios-row／chevron／.ios-card：卡片只有一張，
+ *        成員區塊係自訂排版（見 profileDevMemberHtml），強行用清單列就會
+ *        退回「列表感」，亦會變成「卡片裡面包卡片」。
+ * ⚠ 刻意唔用 Modal：本專案明令「全站禁止 Modal」，所有子頁面一律經
+ *   profilePushDetail() 以 iOS 標準 Push 動畫推入共用容器 #profile-detail-body
+ *   （見 PROFILE_DETAIL_PAGES 上方註解）。所以呢度冇 openAboutUsModal() ——
+ *   若日後真要一個彈窗版本，正確做法係改 profilePushDetail 嘅呈現，
+ *   而唔係喺呢度另開一套「彈窗」導覽語言（同一層有兩套語言，用戶會唔知
+ *   撳返回鍵會去邊）。
+ * ⚠ 版本號一律經 profileAppVersion() 取 APP_VERSION（db.js，全站唯一來源），
+ *   唔可以喺呢度再硬編一次，否則升版本時兩份會走音。
+ * ⚠ 版本號用 <span> 而唔另開一張 .ios-card：佢唔係清單項目（唔可撳、冇箭頭、
+ *   冇分隔線），依架構規則唔可以用卡片包裹；而且佢同上面兩行同屬「App 資訊」
+ *   一個區塊，抽出嚟就會變成一張只得一列嘅孤零零卡片，節奏斷開。
+ * ⚠ 舊版呢頁仲有「聯絡／法律」卡（以電郵聯絡我們、回報問題 / 意見反饋、
+ *   複製版本資訊、私隱政策、服務條款）同「開發者簡介」入口卡，均已按需求刪除。
+ *   刪嘅時候已確認兩件事，唔好當係漏咗：
+ *   · 私隱政策／服務條款 唔會失去入口 —— 主選單「法律與合規」卡已有齊四篇
+ *     （免責聲明／服務條款／私隱政策／條款與許可）；
+ *   · 回報問題 / 意見反饋 同 聯絡支援 同樣喺主選單各自有入口。
+ *   ⚠ 亦唔可以改用 profileInfoRowHtml() 偷偷塞返：該函式係「唯讀資訊列」，
+ *     用嚟重現「可以撳」嘅動作會令畫面同實際行為唔一致。
+ * ⚠ 頁尾致敬標語（PROFILE_ABOUT_TRIBUTE）曾隨上述內容一併刪除，呢次按需求
+ *   恢復，並改為擺喺開發者卡片嘅最底一行（卡內最後一項）。
+ *   ⚠ 個心係 icons.js 嘅 heart SVG，唔係 ❤ Emoji —— 本專案系統 UI 嚴禁 Emoji。
+ *   ⚠ 標語恆為整段嘅最後一項：下面嘅 return 一定要把佢拼喺 members 之後，
+ *     否則個分隔線就會落錯位（CSS 用 .dev-member + .detail-tribute 判定）。
+ */
+function profileDetailAboutHtml() {
+    // ⚠ 成員由 PROFILE_DEVELOPER_MEMBERS 驅動（單一來源）。陣列一空就
+    //   整張卡唔渲染 —— 唔會留低一張「得個標題」嘅空卡。
+    const members = (typeof PROFILE_DEVELOPER_MEMBERS !== 'undefined' && PROFILE_DEVELOPER_MEMBERS.length)
+        ? PROFILE_DEVELOPER_MEMBERS.map(profileDevMemberHtml).join('')
+        : '';
+
+    // ⚠ typeof 守衛同上面一樣：profile-content.js 未載入時應該係「冇咗一句標語」，
+    //   而唔係整個「關於我們」頁拋 ReferenceError 變空白頁。
+    const tribute = (typeof PROFILE_ABOUT_TRIBUTE !== 'undefined' && PROFILE_ABOUT_TRIBUTE)
+        ? '<p class="detail-tribute">' +
+              '<span class="detail-tribute__text">用</span>' +
+              '<span class="detail-tribute__icon" data-icon="heart" data-icon-size="14" aria-hidden="true"></span>' +
+              '<span class="detail-tribute__text">' + profileEscape(PROFILE_ABOUT_TRIBUTE) + '</span>' +
+          '</p>'
+        : '';
+
+    // ⚠ 區塊標題同樣用 typeof 守衛：「冇咗個標題」係可以接受嘅退化，
+    //   整個頁拋 ReferenceError 就唔係。
+    const panelTitle = (typeof PROFILE_DEVELOPER_PANEL_TITLE !== 'undefined' && PROFILE_DEVELOPER_PANEL_TITLE)
+        ? '<p class="dev-panel__title">' + profileEscape(PROFILE_DEVELOPER_PANEL_TITLE) + '</p>'
+        : '';
+
+    // ⚠ 整張卡經 profileListCardHtml() 產生，唔自己砌 <section class="ios-card">：
+    //   卡片外框（圓角／玻璃底／陰影／左右 14px 內距）全站只有嗰一個定義源頭，
+    //   喺呢度再寫一次就等於開第二份規格，日後改卡一定漏咗呢張。
+    //   ⚠ 一次過傳一個內容項（整塊 .dev-panel）而唔係「每個成員一項」：
+    //     .ios-list 係 flex column，傳多項就會變成幾段各自獨立嘅內容，
+    //     成員之間嘅分隔線亦無從判定。
+    const panel = members
+        ? profileListCardHtml([
+              '<div class="dev-panel">' +
+              panelTitle +
+              members +
+              tribute +
+              '</div>'
+          ])
+        : '';
+
+    return '<div class="detail-callout">' +
+        '<span class="detail-callout__title">' + profileEscape(PROFILE_APP_NAME) + '</span>' +
+        '<span class="detail-callout__desc">' + profileEscape(PROFILE_ABOUT_DESC) + '</span>' +
+        // ⚠ 「版本」兩個字 + profileAppVersion() 拼成「版本 v3.5.1」，同需求一致。
+        //   profileEscape() 照樣包住：APP_VERSION 目前雖然係本專案自己嘅常數，
+        //   但萬一日後改為由遠端設定讀入，呢一層就係必要嘅守衛。
+        '<span class="detail-callout__version">版本 v' + profileEscape(profileAppVersion()) + '</span>' +
+        '</div>' +
+        panel;
+}
+
+/* ================= 開發者成員區塊（「關於我們」頁） =================
+   ⚠ 資料一律由 profile-content.js 嘅 PROFILE_DEVELOPER_MEMBERS 提供
+     （單一來源），呢度只負責渲染，唔可以硬編姓名、班別或者網址。
+   ⚠ 版面係「個人卡片區塊」而唔係「選單列」：由上至下垂直置中 ——
+     圓形頭像 → 姓名 → 班別 → 社交 Icon 掣列，全部水平置中對齊。
+     ⚠ 所以呢度「刻意唔用」profileNavRowHtml()：佢係清單列（label 靠左、
+       有 chevron、有 hairline），用嚟砌一個置中區塊就會出現
+       「有 chevron 但唔係跳轉」嘅語意錯誤，而且一用就即刻返返去列表感。
+     ⚠ 成員區塊之間嘅 1px 橫線由 CSS 負責（.dev-member + .dev-member），
+       唔可以喺呢度插 <hr> 或者自己補一條線嘅 div：分隔線係「排版規則」，
+       一旦變成 DOM 就會出現「最後一位後面多一條線」呢類要靠 :last-child
+       補救嘅問題。
+     ⚠ 姓名之後直接就是班別，中間「冇」任何簡介文字：卡片一多一行描述，
+       就會重新變成一個列表項。舊版嘅「M56運動會暗組織學員」等描述已按
+       需求完全移除，唔好因為「睇落有資料」而加返。
+   ⚠ 社交連結一律 <a href target="_blank" rel="noopener noreferrer">：
+     · 用 <a> 而唔用 <button onclick>：目的地本來就係一條網址，用連結語意
+       先啱（讀屏會讀「連結」，長按／中鍵亦可以另開分頁）；
+     · 開新分頁而唔喺同一分頁導航：本頁係 App 內嘅子頁面，用 location.href
+       會令用戶一去不回（返回鍵返到嘅係一個已經被導離嘅文件）；
+     · noopener 必寫：唔寫嘅話新分頁可以透過 window.opener 改寫本頁，
+       對一個會存登入狀態嘅 App 嚟講係實際風險（noreferrer 一併加上）。
+     ⚠ 舊版嘅 profileOpenExternal() 已隨今次改版刪除（佢係配合 button＋onclick
+       嘅產物）。原本由佢把守嘅「只接受 https://」守衛，改為喺下面渲染前過濾
+       （見 profileDevMemberHtml），效果一樣但更早生效：唔符合嘅寧願唔渲染嗰粒掣，
+       而唔係渲染一粒撳落冇反應嘅死掣。
+   ⚠ 舊版呢個位置係 profileDetailDeveloperHtml()（一個獨立嘅「開發者簡介」
+     次頁面，兼開發者模式入口）。該頁已按需求整頁刪除，成員區塊改為直接嵌入
+     「關於我們」頁嘅卡片；而原喺該頁尾嘅「開發者模式」列亦已搬到「個人中心」
+     頁尾版本號（連點 5 下），詳見 devtools.js 開頭嘅入口搬遷史。
+     ⚠ 亦因此，呢度「唔可以」再加一粒「解鎖管理員驗證」掣：開發者模式全站
+       只可以有一個入口（見 devtools.js 同一段註解）。需求文件提到嘅
+       openDevAuthModal() 本專案從來冇存在過 —— 唔好為咗「跟足文件」而新開
+       一個函式名，再喺呢度加第二道門。
+   ⚠ 該頁附帶嘅聯絡卡（回覆時間／以電郵聯絡我們／回報問題 / 意見反饋／
+     複製支援信箱）已一併刪除，唔好因為「睇落有用」而加返 ——
+     呢幾個動作喺主選單各自已有入口，重複落嚟只會兩處走音。
+   ================================================================= */
+
+/** 由姓名取頭像縮寫：每個字取首字母（'Ray Cheung' → 'RC'、'Chan Hong Tang' → 'CHT'）。
+ *  ⚠ 取「全部」字而唔止前兩個：Chan Hong Tang 用前兩字會得出 'CH'，
+ *    同需求指明嘅 'CHT' 唔一致。上限 3 個字係防止有人填一段長名，
+ *    縮寫撐爆圓形頭像（目前 64px，見 .dev-member__avatar）。
+ *  ⚠ 用文字縮寫而唔用相片：本專案冇、亦唔應該為此新增二進位資產
+ *    （assets/ 目前只有 App 圖示同 logo）；而遠端頭像 URL 一離線就變爛圖，
+ *    同本頁「必須離線可讀」嘅前提直接矛盾。純文字縮寫永遠 render 得出，
+ *    而且跟 currentColor 走，深淺主題各自有正確對比。 */
+function profileDevInitials(name) {
+    const words = String(name || '').trim().split(/\s+/).filter(Boolean).slice(0, 3);
+    const letters = words.map(w => w.charAt(0)).join('');
+    return letters ? letters.toUpperCase() : '?';
+}
+
+/** 一位成員嘅區塊：由上至下垂直置中 —— 圓形頭像 → 姓名 → 班別 → 社交 Icon 掣列。
+ *  ⚠ 中間刻意冇任何簡介文字 —— 姓名之後直接就是班別。
+ *  ⚠ 唔包卡片外框：呢個區塊係開發者大卡「入面」嘅一段內容，
+ *    喺度再包 .ios-card 就會變成「卡片裡面包卡片」。分隔線亦唔喺呢度出，
+ *    交由 CSS 以相鄰選擇器（.dev-member + .dev-member）判定。
+ *  ⚠ 社交掣用 <a href> 而唔用 <button onclick>：目的地本來就係一條網址，
+ *    連結語意先啱。連帶把「只接受 https://」嘅守衛由「撳嗰陣先檢查」
+ *    改為「渲染前先過濾」（見下面 filter）—— 效果一樣但更早生效。
+ *  ⚠ 網址、aria-label 一律經 profileEscape()：兩者都係屬性值，
+ *    冇轉義就等於自己開一個屬性注入入口。
+ *  ⚠ data-icon 用嘅 s.icon 係硬編字串（profile-content.js 嘅常數），
+ *    唔可以改成由使用者輸入提供（見 profileNavRowHtml 同一段註解）。
+ *  ⚠ 頭像用 aria-hidden：佢只係姓名嘅縮寫，讀屏讀完個名再讀多次「RC」
+ *    係純噪音；姓名本身係真文字，唔會因為收埋頭像而失去資訊。 */
+function profileDevMemberHtml(member) {
+    const socials = (member && member.socials ? member.socials : [])
+        // ⚠ 過濾而唔係照 render：一個 javascript: 或空網址嘅項目，
+        //   寧願唔出嗰粒掣，都好過出一粒撳落冇反應（或更差）嘅死掣。
+        .filter(function (s) { return s && /^https:\/\//i.test(String(s.url || '')); })
+        .map(function (s) {
+            return '<a class="dev-social__link" href="' + profileEscape(s.url) + '"' +
+                ' target="_blank" rel="noopener noreferrer"' +
+                ' aria-label="' + profileEscape(s.label) + '"' +
+                ' title="' + profileEscape(s.label) + '">' +
+                '<span data-icon="' + s.icon + '" data-icon-size="20"></span>' +
+                '</a>';
+        });
+
+    const cls = (member && member.tag)
+        ? '<span class="dev-member__class">' + profileEscape(member.tag) + '</span>'
+        : '';
+
+    return '<div class="dev-member">' +
+        '<span class="dev-member__avatar" aria-hidden="true">' +
+        profileEscape(profileDevInitials(member && member.name)) +
+        '</span>' +
+        '<span class="dev-member__name">' + profileEscape(member && member.name) + '</span>' +
+        cls +
+        (socials.length ? '<span class="dev-social">' + socials.join('') + '</span>' : '') +
+        '</div>';
+}
+
 /* ================= 版本號（頁尾） ================= */
 
 function profileAppVersion() {
     if (typeof APP_VERSION !== 'undefined' && APP_VERSION) return String(APP_VERSION);
-    return '3.5.0';
+    // 後備值：只有 db.js 未載入或 APP_VERSION 缺失時才行到。
+    // ⚠ 同 index.html 頁尾嘅後備值、db.js 嘅 APP_VERSION 三處必須一致；
+    //   依 db.js 版本政策，唔可以因為改 UI／修 bug 而自行升呢個號。
+    return '3.5.1';
 }
 
 /** 把版本號寫進頁尾。APP_VERSION 係全站唯一來源，唔可以硬編兩份。 */

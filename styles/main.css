@@ -37,6 +37,50 @@ body {
     overflow: hidden;
 }
 
+/* ================= 頂層圖層保險（防「左側 Logo 爆成半屏黑卡」） =================
+   body 係 display: flex（row），正常情況只有 .phone-mockup 一個 in-flow 子元素；
+   其餘頂層元素（#splash-screen / .profile-overlay / .profile-toast）一律係
+   position: fixed 嘅獨立圖層，唔應該參與 body 嘅 flex 排版。
+
+   ⚠️ 一旦有圖層「失去 position: fixed」，佢就會變成 body 嘅 flex item：
+      Splash 會同手機外框並排（被推到左邊），而 .app-logo 寫嘅係
+      width / height: 100%，app-logo.svg 原生又係 512 × 512 →
+      Logo 會撐成一塊黑底大卡佔據半個螢幕，就係桌面版／大螢幕見到嘅破版。
+      最常見成因唔係側邊欄，而係樣式表版本不一致：Service Worker 快取到
+      舊 index.html（舊版 Splash 樣式擺喺外部 styles/splash.css）配新
+      splash.css（現時已經係空佔位檔）→ Splash 整層失去樣式。
+
+   下面係「下限保險」，正常情況完全唔生效（值同 index.html 內嵌 critical CSS 一致）；
+   全部用 :where() 令權重歸零 → 永遠唔會蓋過內嵌 critical CSS，
+   唔會變成第二個「真相來源」。 */
+body > *:not(.phone-mockup) {
+    position: fixed;
+}
+
+:where(#splash-screen) {
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background-color: var(--bg-color, var(--boot-bg, #0f1117));
+}
+
+/* Splash 品牌塊：永遠 160 × 160，唔隨父容器／視窗伸縮 */
+:where(#splash-screen) .splash-logo {
+    flex: 0 0 auto;
+    width: 160px;
+    height: 160px;
+    max-width: 160px;
+    max-height: 160px;
+}
+
+:where(#splash-screen) .splash-logo__img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
 /* ================= 手機外框 =================
    預設機型：iPhone 16 Pro Max
    邏輯尺寸 440 × 956 CSS px；DPR 3 → 實體像素 1320 × 2868。
@@ -113,6 +157,10 @@ body {
     display: block;
     width: 30px;
     height: 30px;
+    /* 封頂：Header Logo 永遠細細粒（app-logo.svg 原生 512 × 512，
+       一旦呢條規則失效就會撐爆成條品牌列） */
+    max-width: 30px;
+    max-height: 30px;
     flex-shrink: 0;
     border-radius: 9px;
     object-fit: contain;

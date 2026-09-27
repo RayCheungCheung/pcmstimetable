@@ -98,6 +98,16 @@
     display: block;
     width: 100%;
     height: 100%;
+    /* ⚠️ 尺寸上限：原本只寫 width / height: 100%，即係「完全跟父容器」，
+       父容器一旦冇尺寸或被撐大（例如樣式表版本不一致令 .auth-hero__badge
+       失效），app-logo.svg（原生 512 × 512）就會撐成一塊黑底大卡。
+       120px 足夠覆蓋登入頁 Badge（88px）／班級引導（64px），
+       同時保證「無論父容器幾大，Logo 最多 120px」。
+       註：Splash 嘅 160px Logo 由 index.html 內嵌
+       「#splash-screen .splash-logo__img」嘅 max-width / max-height
+       覆寫（ID 權重高於呢個 class）→ 唔受呢個 120px 影響。 */
+    max-width: 120px;
+    max-height: 120px;
     object-fit: contain;
     border-radius: 22.5%;
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);

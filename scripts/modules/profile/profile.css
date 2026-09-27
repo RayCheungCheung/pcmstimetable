@@ -6,7 +6,8 @@
       4-2 清單項目  4-3 圖示配色  4-4 頁尾版本號
       4-5 分組小標題（.ios-group-title）＋ 子頁面表單卡（.detail-form / .detail-field）
       4-6 子頁面共用元件（.detail-action 操作列 / .detail-stat 統計列 /
-          .detail-row 開關列 / FAQ / 法律條文 / 邀請連結 / 強調卡）
+          .detail-row 開關列 / FAQ / 法律條文 / 邀請連結 / 強調卡 /
+          App 資訊區塊版本號）
    5) 切換帳號清單 + 子頁面（帳戶列表 / 密碼 / 電郵 / 安全通知 / 用戶名稱 / 外觀 /
       已連結裝置 / 私隱 / 儲存空間 / 常見問題 / 回報問題 / 聯絡支援 /
       四篇法律條文 / 邀請朋友 / 帳戶選項 / 登出）
@@ -1425,7 +1426,7 @@ button.ios-row:active { background-color: var(--lg-row-active); }
     border-color: transparent;
 }
 
-/* 雲端同步狀態標籤（Google Sheets）：點擊即手動同步一次 */
+/* 雲端同步狀態標籤（Supabase）：點擊即手動同步一次 */
 .tag-pill--cloud {
     color: #fff;
     border-color: transparent;
@@ -1621,9 +1622,17 @@ button.ios-row:active { background-color: var(--lg-row-active); }
    現由「核心功能」卡片的清單項目取代，相關樣式一併刪除。 */
 
 /* 5-5 頁尾（Footer）：版本號已由選單卡片移出，放回頁面最底部，
-   恢復以往簡約風格 —— 置中、低調灰字、無卡片、無邊框、無互動。
-   ⚠ 舊版嘅 .profile-version 係「長按 / 連點 5 下 → 開發者模式」入口，
-     隨住開發者模式徹底移除，該樣式連同 pointer / active 縮放效果一併刪除。 */
+   恢復以往簡約風格 —— 置中、低調灰字、無卡片、無邊框。
+   ⚠ 版本號係「開發者模式」嘅唯一入口（連點 5 下，見 devtools.js 開頭說明），
+     所以呢個元素帶 data-dev-version 標記。
+   ⚠ 但外觀上「唔可以」睇得出佢可撳：唔可以有 pointer 手勢、唔可以有
+     active 縮放、唔可以變色。入口係刻意隱蔽嘅一道閘，唔係一個按鈕 ——
+     一有互動外觀，普通用戶就會亂撳，反而製造誤入機會。
+   ⚠ cursor / user-select / tap-highlight 三者同時需要：
+     唔寫 cursor 就會出「手指」、唔寫 user-select 就連撳時會選中文字、
+     唔寫 tap-highlight 喺手機上每次撳都會閃一下灰底 —— 三者任何一項漏咗，
+     入口即刻變得顯眼。devtools.css 亦有 [data-dev-version] 嘅防禦規則
+     （防止上游誤加 pointer-events: none 令入口靜靜失效）。 */
 .profile-footer {
     padding: 22px 8px 10px;
     text-align: center;
@@ -2049,6 +2058,283 @@ button.ios-row:active { background-color: var(--lg-row-active); }
     font-weight: 600;
     line-height: 1.7;
     color: var(--text-muted);
+}
+
+/* ---------- App 資訊區塊嘅版本號（「關於我們」頁頂部第三行） ----------
+   ⚠ 呢個 class 同下一段嘅 .detail-tribute（頁尾致敬標語）只係喺「呢個檔案」
+     入面相鄰，喺頁面上一個喺頂、一個喺底，兩者完全冇關係 ——
+     唔好因為睇落相鄰而合併，或者互相加 margin。
+   ⚠ 用 .detail-callout__version 而唔用 .ios-row__value（profileInfoRowHtml）：
+     版本號唔係清單項目（唔可撳、冇箭頭、冇分隔線），依架構規則唔可以用
+     .ios-card 包裹；而且佢同上面嘅 App 名稱／簡介係同一個「App 資訊」區塊，
+     抽出嚟做一張單列卡會令節奏斷開。
+   ⚠ 顏色一律用 --text-muted，唔可以硬編 #888888：
+     深色主題嘅 --text-muted 係 #94a3b8，硬編中灰喺深底上對比不足
+     （達唔到 AA），而且主題一切換就會同其他註腳唔一致。
+   ⚠ 唔加 opacity 壓淡（頁尾 .profile-footer__version 有用，但嗰度係 10px
+     純裝飾；呢度係要讀得到嘅版本資訊，壓淡會令對比進一步下降）。
+   ⚠ 用等寬字體係為咗數字逐位對齊，同 .profile-footer__version 一致 ——
+     用戶核對版本號時，兩處睇落應該係同一種字。
+   ⚠ margin-top: 2px 係刻意嘅：外層 .detail-callout 係 flex column ＋
+     gap: 6px，而 flex 嘅 gap 同子項 margin 係「相加」，所以實際距離上一行
+     8px —— 令版本號同「名稱／簡介」之間多一級呼吸位，睇落似區塊尾行而唔似
+     第三行正文。 */
+.detail-callout__version {
+    margin-top: 2px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+}
+
+/* ---------- 頁尾致敬標語（開發者大卡內嘅最後一項） ----------
+   ⚠ 呢三段（.detail-tribute / __icon / __text）曾經被刪過一次，呢次係按需求
+     恢復。以後再刪標語，記得連 icons.js 嘅 heart 一齊處理，反之亦然 ——
+     兩邊任何一邊單獨留低都會變死碼。
+   ⚠ 佢而家係開發者大卡「入面」嘅一行（見 profileDetailAboutHtml），
+     唔可以再自己畫卡片外框；同上一段內容之間嘅分隔線由
+     .dev-member + .detail-tribute 提供（見下面開發者區塊一段）。
+   ⚠ width: 100% 係必要嘅：父層 .dev-panel 係 align-items: center 嘅
+     flex column，唔寫就會 shrink-to-fit 貼住文字，橫線亦只會畫到文字咁長。
+   ⚠ margin: 0 ＋ 用 padding 撐開上下留白：同 .dev-member 一致，
+     令呢一行嘅節奏同其他成員區塊一樣（唔可以一處 margin 一處 padding，
+     否則加埋 flex gap 之後兩個距離會唔同）。
+   ⚠ 用 text-align: center ＋ 逐段 inline 排列，而唔用 flex ＋ gap：
+     呢句係「用 ❤ 為澳門培正中學師生打造」一行連續文字，中間夾一個心形，
+     用 flex 就會變成三個獨立 flex item，窄螢幕換行時會斷在「用」同個心之間
+     或者個心同後半句之間，睇落似兩截文字。inline 排列繼承正常嘅斷行規則，
+     換行只會喺中文字之間發生。 */
+.detail-tribute {
+    width: 100%;
+    margin: 0;
+    padding: 16px 0;
+    text-align: center;
+}
+
+.detail-tribute__text {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.7;
+    color: var(--text-muted);
+}
+
+/* 心形本體：icons.js 嘅 heart 係 fill: none ＋ stroke: currentColor 嘅線條畫法，
+   呢度用 fill: currentColor 補成實心 —— 即需求原文嗰個實心紅心。
+   ⚠ 唔可以用 ❤️ Emoji 代替：本專案系統 UI 嚴禁 Emoji（字型唔一致、
+     深淺主題下會變彩色水果／愛心，破單色規範）。
+   ⚠ 顏色用 --ios-red（同 .ios-row.is-danger 同源），唔可以硬編 #ff3b30。
+   ⚠ vertical-align: middle ＋ 負 margin 修正：SVG 預設係 baseline 對齊，
+     14px 嘅心會整個浮喺 12px 文字嘅基線之上，睇落似上標。 */
+.detail-tribute__icon {
+    display: inline-block;
+    margin: 0 1px;
+    line-height: 0;
+    vertical-align: middle;
+    color: var(--ios-red);
+}
+
+.detail-tribute__icon svg {
+    display: block;
+    fill: currentColor;
+}
+
+/* ---------- 開發者卡片（「關於我們」頁專用） ----------
+   ⚠ 呢個係「一塊置中嘅個人名牌板」而唔係設定清單：需求指明要擺脫列表感，
+     所以全頁只有「一張」白色大卡，卡內由上至下依次為
+     區塊標題 → 成員（垂直排列）→ 頁尾致敬標語，全部水平置中。
+     ⚠ 舊版係「每位成員一張 .ios-card」—— 幾張同款卡疊埋一齊，
+       睇落仍然係一列清單項，只係換咗皮膚。所以「成員唔可以再各自包卡」。
+   ⚠ .dev-panel 係 .ios-card 嘅內容，所以呢度刻意唔自己畫卡片外框
+     （background／border／border-radius 一律唔寫），交由 .ios-card 提供，
+     否則就會變成「卡片裡面包一張卡」。
+   ⚠ 上下留白用 padding 而唔用 margin：父層 .ios-list（profileListCardHtml
+     產生）本身已經有 6px 上下內距，用 margin 會同佢「相加」而變得隨機，
+     用 padding 則係同一個盒自己嘅內距，數值一眼睇得出最終高度。
+   ⚠ 水平內距 ＝ .ios-card 嘅 14px ＋ 呢度嘅 2px ＝ 卡邊起計 16px。
+     呢個 2px 唔係隨手寫：佢同 .ios-row 嘅 padding: 9px 2px 完全一致，
+     令卡內文字同其他頁嘅清單列落喺同一條線上。
+     ⚠ 亦唔可以「為咗均勻」而改成 14px：咁卡片左右就會各自變成 28px 內距，
+       同一尺寸嘅卡但內容窄一圈，同其他頁嘅卡片唔一致。
+     ⚠ 上面嘅 .detail-callout 係置中文字區塊（唔係卡片、冇左右對齊線），
+       所以「同上一張卡左邊對齊」呢件事本身就唔存在，唔需要為佢調整。 */
+.dev-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 2px 4px;
+    text-align: center;
+}
+
+/* 區塊標題（「開發者」）：卡片頂部嘅灰字分區標籤。
+   ⚠ 灰字 ＋ 置中係需求指定嘅觀感，用 --text-muted 而唔可以硬編中灰：
+     深色主題嘅 --text-muted 係另一個值，硬編就會喺深底上對比不足。
+   ⚠ 字距放大係刻意嘅：呢個係單獨一行嘅區塊標籤（唔係句子），
+     加闊字距先同下面嘅姓名／班別分得開層級。 */
+.dev-panel__title {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+}
+
+/* 一位成員嘅區塊：由上至下垂直置中 —— 圓形頭像 → 姓名 → 班別 → 社交掣列。
+   ⚠ 用 flex column ＋ align-items: center，唔用 text-align: center 就算：
+     text-align 只處理行內文字，社交掣列係 flex 容器，置中唔到。
+   ⚠ width: 100% 係必要嘅：父層 .dev-panel 係 align-items: center，
+     唔寫就會 shrink-to-fit，下面嗰條 1px 分隔線只會畫到頭像咁闊。
+   ⚠ 用 padding 而唔用 gap 排上下距離：頭像、姓名、班別三者嘅距離
+     刻意唔一樣（姓名貼班別較近），gap 只可以全部一樣。 */
+.dev-member {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 18px 0;
+}
+
+/* 成員之間、以及最後一位同頁尾標語之間嘅分隔線。
+   ⚠ 需求原文寫「border-top: 1px solid #E5E5EA」，呢度刻意改用
+     var(--lg-line)：硬編 #E5E5EA 喺深色主題下會變成一條發光嘅白線，
+     同全站其他 hairline（.ios-row、.detail-stat 等）嘅語言完全唔一致。
+     淺色主題嘅 --lg-line（rgba(0,0,0,0.08)）疊喺白卡上就係 #EBEBEB，
+     同需求嗰隻 #E5E5EA 視覺上係同一條線。
+   ⚠ 厚度用 1px 而唔跟其他 hairline 嘅 0.5px：呢度分隔嘅係「兩位唔同成員」
+     兩個大區塊，比其他地方嘅「同一組內嘅兩列」需要更清楚嘅斷句。
+   ⚠ 用相鄰選擇器（+）而唔用 :not(:first-child)／:not(:last-child)：
+     標題唔應該有線（第一個子項係 .dev-panel__title），而線只可以出現喺
+     「成員之後」—— 相鄰寫法一次過講清楚呢兩件事，唔會漏。 */
+.dev-member + .dev-member,
+.dev-member + .detail-tribute {
+    border-top: 1px solid var(--lg-line);
+}
+
+/* 頭像：姓名縮寫（無相片資產、無遠端 URL，離線一定有嘢睇）。
+   ⚠ 漸變沿用 .auth-hero__badge 嘅同一組色（紫 → 粉 → 青），
+     令「品牌色」全站只有一個定義源頭。
+   ⚠ 呢個係「身份標記」而唔係設定頁圖示：設定頁圖示必須單色線條
+     （見 .ios-row__icon 註解，彩色底框已全面移除），但頭像／品牌徽章
+     唔屬於嗰條規則嘅適用範圍。
+   ⚠ 64px 而唔跟舊版嘅 48px：呢個區塊係「一張個人名牌」，頭像係視覺重心；
+     48px 配 17px 姓名會令頭像縮到同文字差不多大，睇落似清單項嘅小圓點。
+   ⚠ margin-bottom 而唔用父層 gap：下面三個距離（頭像→姓名→班別→社交列）
+     刻意唔一樣，gap 只可以全部一樣（見 .dev-member 同一段註解）。 */
+.dev-member__avatar {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 10px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 0.3px;
+    color: #ffffff;
+    background: linear-gradient(140deg, #6a5cff, #ff5f9e 55%, #00d4ff);
+    box-shadow: 0 6px 18px rgba(106, 92, 255, 0.32);
+    /* 縮寫係裝飾性文字：唔應該可以被選取或複製 */
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* 姓名：區塊內最重嘅一行（黑字加粗）。
+   ⚠ max-width ＋ 省略號係防禦性嘅：姓名由 profile-content.js 提供，
+     日後有人填一個超長名都唔會撐爆卡片寬度（卡片係 overflow: hidden，
+     冇呢兩句就會直接切字，連「被截斷」都睇唔出）。 */
+.dev-member__name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    color: var(--text-main);
+}
+
+/* 班別（例如「初二正」）：姓名對落一行嘅藍字。
+   ⚠ 刻意「唔」做成一粒 Badge（膠囊底 ＋ 邊框）：需求指明呢度只要藍字，
+     加咗底色就會喺卡內多出一層「標籤」質感，同整塊名牌板嘅簡潔觀感衝突。
+   ⚠ 用 --ios-blue 而唔用中性灰：呢個係「有意義嘅分類標記」，屬於全站
+     色票容許嘅用法；灰色嘅話喺深色主題下同 .ios-row__value 撞色，
+     睇落似一段被截斷嘅文字而唔似班別。
+   ⚠ margin-top 用正值而唔用負值修正：父層已經冇 gap，呢度直接表達
+     「姓名同班別貼近」呢件事，唔需要靠負 margin 抵消上一層嘅 gap。 */
+.dev-member__class {
+    max-width: 100%;
+    margin-top: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    color: var(--ios-blue);
+}
+
+/* 社交掣列：成員區塊底部一行，橫向置中。
+   呢個係改版嘅核心 —— 舊版社交連結逐條排成 .ios-row（有 chevron、
+   有 hairline、每條 52px 高），一張卡就被撐到三四行，睇落完全係一個
+   預設列表；改成橫向 Icon 掣之後一位成員只需要一個區塊。
+   ⚠ justify-content: center 係需求指定嘅「按鈕列置中」；父層
+     align-items: center 已經令整列水平居中，呢句係防止日後社交項目
+     多到超出一行時，多出嘅一項會靠左排。
+   ⚠ flex-wrap 唔加：成員最多三個連結（見 PROFILE_DEVELOPER_MEMBERS），
+     一行 3 × 40px ＋ 2 × 12px 間距遠窄過卡內可用寬度，加 wrap 只會
+     製造一個永遠唔會觸發嘅分支。 */
+.dev-social {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+/* 社交 Icon 掣：40px 圓角方形底 ＋ 單色線條圖示。
+   ⚠ 刻意係 <a> 而唔係 <button>（見 profileDevMemberHtml）：目的地本來就係
+     一條網址，連結語意先啱。所以呢度亦要自己清 text-decoration／顏色，
+     唔可以靠 button 嘅預設值。
+   ⚠ 用圓角方形（12px）而唔係圓形：呢幾個掣係「App 圖示」嘅隱喻
+     （IG / GitHub / 網站），模板圖上亦係圓角方形；而圓形喺同一張卡內
+     已經係頭像嘅語言，兩者形狀一樣會令頭像唔再突出。
+   ⚠ 顏色／底色用同一隻 --ios-blue 嘅低透明度，同全站其他藍色標記一致；
+     硬編第二隻藍會令日後改 --ios-blue 時走音。
+   ⚠ 40px 係刻意嘅折衷：HIG 建議 44px 觸控目標，但呢度係卡內一行三個
+     次要動作，做到 44px 會令卡片高度同 64px 頭像失衡；40px 配合 12px
+     間距，實際誤觸率已經好低。
+   ⚠ 唔可以加 box-shadow 或者邊框：全站唯一嘅「浮起」層次係 .ios-card 本身，
+     喺卡內再疊一層陰影會同卡片外框嘅陰影重疊。
+   ⚠ transition 只做 transform／background-color：加埋 width 或者 color
+     就會喺撳嗰下觸發 layout，出現一下卡頓。 */
+.dev-social__link {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    color: var(--ios-blue);
+    background-color: rgba(10, 132, 255, 0.14);
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.16s ease, background-color 0.16s ease;
+}
+
+/* 按壓回饋沿用 .wa-iconbtn 嘅 scale(0.92)，同時加深底色 ——
+   只縮放唔加深，深色主題下幾乎睇唔出有反應。 */
+.dev-social__link:active {
+    transform: scale(0.92);
+    background-color: rgba(10, 132, 255, 0.26);
+}
+
+/* 圖示本體：display: block 消除 inline 元素嘅基線空隙，
+   唔寫嘅話圖示喺圓角方塊入面會偏上，睇落唔置中。 */
+.dev-social__link svg {
+    display: block;
 }
 
 /* ================= 6. 切換帳號清單 ================= */

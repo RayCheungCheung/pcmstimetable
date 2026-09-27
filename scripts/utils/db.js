@@ -34,7 +34,23 @@ const DB_MIRROR_PREFIX = 'appdb_mirror_v1_';
 //   · service-worker.js 的 CACHE_NAME → 靜態資源（CSS / JS / 圖片）嘅總開關
 //   · index.html 的 ?v=  → 逐個檔案嘅 bust 標記，只有改過嘅檔才需要升
 // 三者一齊升版 ＝ 全站強制重新抓一次，發佈時最保險。
-const APP_VERSION = '3.5.0';
+//
+// ⚠ 版本政策（用家明確指示，請務必遵守）：
+//   APP_VERSION 就係「介面顯示嘅 App 版本」（頁尾 #app-version、關於我們頁），
+//   一律 *唔可以* 因為改 UI／執 CSS／調整佈局／修小 bug 而自動遞增。
+//   要升版（例如 3.5.1 → 3.6.0）必須有用家明確指令（「請發布新版本」／
+//   「bump version」），否則就固定喺 3.5.1 唔好郁。
+//   ⚠ 呢個政策 *唔* 適用於 CACHE_NAME 同 ?v= —— 佢哋唔係「App 版本」，
+//     而係「新舊檔案嘅分辨標記」。標記嘅取值可以用當前 App 版本號（3.5.1），
+//     但功能上佢只係一個指紋：同一個網址只可以對應同一份內容，所以只要改過
+//     某個檔案，佢個 ?v= 就必須變成一個「未出現過」嘅值，否則快取優先會
+//     令用戶永遠睇到舊檔。CACHE_NAME 則係獨立嘅代際編號（同 SW 更新記錄同步）。
+//     service-worker.js 對 CSS／JS 係「快取優先」，而快取 key 係含 ?v= 嘅
+//     完整 URL（見 service-worker.js fetch ①、cache.add 註解）；即係話：
+//     改咗個檔案但唔升佢嘅 ?v=，用戶嘅瀏覽器會永遠命中舊快取，
+//     新畫面永遠送唔到出去。所以改完 CSS／JS 仍然要升「該個檔案」嘅 ?v=，
+//     改完靜態資源仍然要升 CACHE_NAME。呢兩者同 App 版本號互不干涉。
+const APP_VERSION = '3.5.1';
 
 // 班級清單的資料結構版本，對照 data/classes.json 的 schemaVersion。
 // 一旦唔一致 → 清掉 localStorage 內殘留嘅舊班級快取（auth_classes_cache），

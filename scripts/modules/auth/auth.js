@@ -1,8 +1,23 @@
 // ============================================================
 // 帳號驗證核心（Real Auth Core）
-//  · Email + 密碼註冊 / 登入（WebCrypto SHA-256 + 隨機 salt，永不儲存明碼）
+//  · Email + 密碼註冊 / 登入
 //  · Session 保持（localStorage 長期 / sessionStorage 單次）
 //  · 班級清單載入與「班級 → 課表」綁定
+// ------------------------------------------------------------
+// ⚠ 密碼處理方式已變更（重要）：
+//   舊版由前端自行計算 salted SHA-256（authHashPassword）再存進 Google Sheets。
+//   該做法有兩個問題：① 前端雜湊對離線攻擊幾乎無防護力，
+//   ② 密碼雜湊值會連同帳號資料一齊在裝置之間傳遞。
+//   現已全面改由 Supabase Auth 處理：前端只把明文密碼經 HTTPS 交給
+//   伺服器，由伺服器以 bcrypt 儲存，前端永不計算、永不保存任何雜湊或鹽值。
+//   ⇒ authHashPassword / authVerifyPassword / autSecureAvailable 已移除，
+//     帳號物件亦唔再有 salt / passwordHash 欄位。
+//
+// 本機帳號快取（localStorage）仍然保留，用途改為：
+//   · 離線讀取帳號資料（班級、頭像）→ 秒開
+//   · 保存每個帳號自己的 Supabase 續期權杖（account.sbRefreshToken），
+//     令一部裝置可以儲存多個帳號並即時切換（切換時換權杖，唔需要再打密碼）
+// ⚠ 續期權杖只留在本機，永遠唔會推送雲端（見 cloud.js 的 SB_PUSH_FIELDS）。
 // ============================================================
 
 const AUTH_ACCOUNTS_KEY = 'auth_accounts';       // 帳號資料庫
@@ -18,7 +33,6 @@ const AUTH_USER_CLASS_KEY = 'user_class';
 let authAccounts = [];
 let authSession = null;
 let authClasses = null;          // { classes:[], defaultClassId, defaultSchedule }
-let authSecureContext = true;    // crypto.subtle 是否可用
 
 /* ================= 設定 ================= */
 
@@ -48,39 +62,29 @@ function authValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(authNormalizeEmail(email));
 }
 
-/* ================= 密碼雜湊 ================= */
+/* ================= 密碼驗證 ================= */
 
-// 回傳 "演算法:雜湊值"。優先用 WebCrypto；file:// 等非安全來源會退回 FNV-1a 變體。
-async function authHashPassword(password, salt) {
-    const text = salt + '::' + password;
+// ⚠ 前端密碼雜湊（authHashPassword / authVerifyPassword / autSecureAvailable）
+//   已整段移除。密碼由 Supabase Auth 於伺服器以 bcrypt 儲存及比對，
+//   前端只負責把明文經 HTTPS 送出，唔會、亦唔可以自行驗證密碼。
 
-    if (autSecureAvailable()) {
-        const buf = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-        return 'sha256:' + Array.from(new Uint8Array(buf))
-            .map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-
-    // 退化方案：仍然加鹽，但強度遠低於 SHA-256
-    let h1 = 0x811c9dc5;
-    let h2 = 0x1000193;
-    for (let i = 0; i < text.length; i++) {
-        const code = text.charCodeAt(i);
-        h1 = (h1 ^ code) >>> 0;
-        h1 = Math.imul(h1, 16777619) >>> 0;
-        h2 = (h2 + code * (i + 1)) >>> 0;
-        h2 = Math.imul(h2 ^ (h2 >>> 15), 2246822519) >>> 0;
-    }
-    return 'fnv:' + h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0');
+// 密碼長度下限：同 Supabase 專案的 Password Policy 保持一致（預設 6，建議 8）
+function authPasswordMinLength() {
+    const configured = Number(authConfig().passwordMinLength);
+    return Number.isFinite(configured) && configured >= 6 ? configured : 6;
 }
 
-function autSecureAvailable() {
-    return !!(window.crypto && window.crypto.subtle && typeof window.crypto.subtle.digest === 'function');
-}
-
-async function authVerifyPassword(account, password) {
-    if (!account || !account.passwordHash || !account.salt) return false;
-    const hash = await authHashPassword(password, account.salt);
-    return hash === account.passwordHash;
+function authPasswordCheck(password) {
+    const value = String(password == null ? '' : password);
+    if (!value) return { ok: false, error: '請輸入密碼' };
+    if (value.length < authPasswordMinLength()) {
+        return { ok: false, error: '密碼至少需要 ' + authPasswordMinLength() + ' 個字元' };
+    }
+    if (value.length > 72) {
+        // bcrypt 只取前 72 bytes，超出部分會被忽略 → 直接擋掉避免使用者誤會
+        return { ok: false, error: '密碼太長（最多 72 個字元）' };
+    }
+    return { ok: true };
 }
 
 /* ================= 帳號資料庫 ================= */
@@ -88,14 +92,22 @@ async function authVerifyPassword(account, password) {
 // 舊版本（只有名字）建立的帳號要補齊欄位，避免升版後整個壞掉
 function authNormalizeAccount(raw) {
     const acc = Object.assign({}, raw);
+    // 有 Supabase 身分之後，id 就係 auth.users.id（uuid）；舊版本機帳號
+    // （acc_xxx）喺第一次成功登入／註冊後會自動換成 uuid。
     acc.id = acc.id || ('acc_' + authRandomHex(6));
     acc.name = acc.name || '未命名用戶';
     acc.email = authNormalizeEmail(acc.email);
-    acc.provider = acc.provider || (acc.passwordHash ? 'email' : 'local');
+    acc.provider = acc.provider || 'email';
     acc.avatar = acc.avatar || '';
     acc.avatarUrl = acc.avatarUrl || '';
-    acc.salt = acc.salt || '';
-    acc.passwordHash = acc.passwordHash || '';
+    // ⚠ 舊版的 salt / passwordHash 欄位已不再使用（密碼交由 Supabase Auth 管理）。
+    //   喺正規化時直接刪走，下一次 authPersistAccounts() 寫檔就會真正清乾淨。
+    delete acc.salt;
+    delete acc.passwordHash;
+    // Supabase 身分：sbUserId ＝ auth.users.id（uuid，同 acc.id 一致）；
+    // sbRefreshToken ＝ 本機限定的續期權杖，用於免密碼切換帳號。兩者都唔會上雲。
+    acc.sbUserId = acc.sbUserId ? String(acc.sbUserId) : '';
+    acc.sbRefreshToken = acc.sbRefreshToken ? String(acc.sbRefreshToken) : '';
     acc.classId = acc.classId || '';
     acc.className = acc.className || '';
     acc.schedulePath = acc.schedulePath || '';
@@ -122,8 +134,6 @@ function authTouch(account) {
 }
 
 function authLoadStore() {
-    authSecureContext = autSecureAvailable();
-
     const list = Storage.get(AUTH_ACCOUNTS_KEY, null);
     if (Array.isArray(list) && list.length) {
         authAccounts = list.map(authNormalizeAccount);
@@ -166,14 +176,26 @@ function authPersistAccounts(options) {
 
 /**
  * 把雲端回傳的帳號併入本機清單（新增或更新）。
- * 雲端回應可能已遮蔽密碼欄位（例如 get），所以空字串唔可以覆蓋本機已有的雜湊值。
  * @returns {Object|null} 合併後的本機帳號
  */
 function authUpsertAccount(remote) {
     if (!remote || !remote.id) return null;
 
     const normalized = authNormalizeAccount(remote);
-    const index = authAccounts.findIndex(item => item && item.id === normalized.id);
+    let index = authAccounts.findIndex(item => item && item.id === normalized.id);
+
+    // 由舊版（Google Sheets 的本機帳號，id = acc_xxx）升級過來時，
+    // 同一個 Email 會撞到舊紀錄：呢個情況要「接手」舊紀錄，
+    // 換成 Supabase uuid 而唔係多開一個重複帳號。
+    let adopted = null;
+    if (index < 0 && normalized.email) {
+        const legacyIndex = authAccounts.findIndex(item =>
+            item && authNormalizeEmail(item.email) === normalized.email);
+        if (legacyIndex >= 0) {
+            adopted = authAccounts[legacyIndex];
+            index = legacyIndex;
+        }
+    }
 
     if (index < 0) {
         authAccounts.push(normalized);
@@ -183,11 +205,18 @@ function authUpsertAccount(remote) {
 
     const merged = Object.assign({}, authAccounts[index]);
     Object.keys(normalized).forEach(key => {
-        // 雲端遮蔽欄位唔可以清空本機的登入能力
-        if ((key === 'salt' || key === 'passwordHash') && !normalized[key]) return;
+        // ⚠ 本機限定憑證唔可以畀雲端資料覆蓋（雲端唔會回傳，亦唔應該清空）
+        if ((key === 'sbRefreshToken' || key === 'sbUserId') && !normalized[key]) return;
+        // 加入日期要保留「最早」的那個，避免接手舊帳號時被重設成今日
+        if (key === 'createdAt') {
+            const older = Math.min(Number(merged.createdAt || 0) || Infinity, Number(normalized.createdAt || 0) || Infinity);
+            if (Number.isFinite(older)) merged.createdAt = older;
+            return;
+        }
         merged[key] = normalized[key];
     });
 
+    if (adopted) merged.createdAt = Number(adopted.createdAt) || merged.createdAt;
     authAccounts[index] = merged;
     authPersistAccounts({ silent: true });
     return merged;
@@ -282,9 +311,161 @@ function authStartSession(account, remember) {
 }
 
 function authSignOut() {
+    // ⚠ 登出要一併撤銷 Supabase session：本機即刻登出，網絡請求只係背景清理，
+    //   失敗（例如離線）唔應該阻擋使用者。
+    //   注意：這裡只清掉「目前 session」，各帳號自己儲存的續期權杖仍然保留，
+    //   所以由帳號選單切換返去時唔需要重新輸入密碼（與舊版行為一致）。
+    if (typeof cloudSignOut === 'function' && typeof cloudEnabled === 'function' && cloudEnabled()) {
+        try { cloudSignOut(); } catch (error) { /* 背景清理失敗唔影響登出 */ }
+    }
     authSession = null;
     authPersistSession();
     Storage.remove('profile_current_id');
+}
+
+// ============================================================
+// 安全登出（使用者主動按「登出」時走這條路徑）
+// ------------------------------------------------------------
+// 與 authSignOut() 的分工：
+//   authSignOut()       —— 程式內部狀態切換（session 過期、移除帳號時呼叫），
+//                          刻意保留各帳號的續期權杖，令切換帳號免密碼。
+//   authSignOutSecure() —— 使用者主動登出，必須「唔留痕」。
+//
+// ⚠ 舊版係 fire-and-forget（cloudSignOut() 冇 await），
+//   造成「UI 已顯示已登出，但撤銷請求仲喺度跑」的窗口 ——
+//   公用電腦上使用者一撳登出就走人，嗰個請求有機會從未送出，
+//   伺服器端的 refresh token 就會繼續有效。這裡改為 await。
+//
+// 清除範圍（全部屬「身分／憑證」，唔包括使用者的課表內容）：
+//   ① Supabase access + refresh token        → appdb_v1_sb_session
+//   ② 該帳號儲在本機的續期權杖               → account.sbRefreshToken
+//   ③ 該帳號未推送的待送佇列（可能含頭像）   → appdb_v1_cloud_queue
+//   ④ 該帳號的最後同步時間戳                 → appdb_v1_cloud_state / _last_sync
+//   ⑤ sessionStorage 內所有 auth_* / appdb_* 鍵
+//   ⑥ 登入旗標與個資（userEmail / userName / isLoggedIn / profile_current_id）
+//
+// ⚠ 刻意「唔清」的鍵：user_class（裝置層班級偏好）、theme（主題）、
+//   appdb_v1_<課表集合>（使用者自己嘅內容）。
+//   登出唔應該令課表消失 —— 嗰個係資料損毀，唔係安全加固。
+//   公用電腦情境請用 { wipeLocalData: true }。
+//
+// @param {{revokeCredential?: boolean, wipeLocalData?: boolean}} [options]
+// @returns {Promise<{ok: boolean, revoked: boolean, purgedJobs: number}>}
+// ============================================================
+async function authSignOutSecure(options) {
+    const opts = options || {};
+    const cfg = authConfig();
+
+    // 預設跟隨設定檔；設定檔沒寫就採用最安全的值（銷毀）
+    const revokeCredential = (opts.revokeCredential !== undefined)
+        ? !!opts.revokeCredential
+        : (cfg.logoutRevokesCredential !== false);
+    const wipeLocalData = (opts.wipeLocalData === true);
+
+    const account = authGetCurrentAccount();
+    const accountId = (account && account.id) ? String(account.id) : '';
+
+    let revoked = false;
+
+    // ① 先向伺服器撤銷 session。
+    //    cloudSignOut() 內部有 5 秒逾時，所以唔會無限等；
+    //    離線時會拋錯，但唔可以因此中止 —— 否則會留下「半登出」狀態。
+    if (typeof cloudSignOut === 'function' && typeof cloudEnabled === 'function' && cloudEnabled()) {
+        try {
+            await cloudSignOut();
+            revoked = true;
+        } catch (error) {
+            revoked = false;
+        }
+    }
+
+    // ② 銷毀本機的續期權杖（令它唔可以再被用嚟靜默換新權杖）
+    if (revokeCredential && accountId && typeof sbForgetCredential === 'function') {
+        try { sbForgetCredential(accountId); } catch (error) { /* 略過 */ }
+    }
+
+    // ③ 清雲端待送佇列與逐帳號同步狀態
+    let purgedJobs = 0;
+    if (typeof cloudPurgeAccountData === 'function') {
+        try {
+            const purged = cloudPurgeAccountData(accountId);
+            purgedJobs = (purged && purged.purgedJobs) || 0;
+        } catch (error) { /* 略過 */ }
+    }
+
+    // ④ 一般登出（清 session / 旗標 / profile_current_id）
+    authSignOut();
+
+    // ⑤ 清掃殘留鍵
+    authSweepSensitiveKeys();
+
+    // ⑥ 可選：連使用者課表內容一併抹除（公用電腦／裝置移交）
+    if (wipeLocalData) authWipeLocalData();
+
+    return { ok: true, revoked: revoked, purgedJobs: purgedJobs };
+}
+
+/**
+ * 只含「身分／憑證」的鍵清單。
+ * ⚠ 唔可以加入 user_class / theme / appdb_v1_<課表集合>：
+ *   嗰啲係裝置設定同使用者內容，登出時清除會造成非預期的資料遺失。
+ */
+const AUTH_SENSITIVE_KEYS = [
+    'auth_session',
+    'isLoggedIn',
+    'userEmail',
+    'userName',
+    'profile_current_id',
+    'profile_accounts',
+    'appdb_v1_sb_session',
+    'appdb_v1_cloud_queue',
+    'appdb_v1_cloud_state',
+    'appdb_v1_cloud_last_sync'
+];
+
+/** 清掃本機殘留的身分／憑證鍵（localStorage + sessionStorage） */
+function authSweepSensitiveKeys() {
+    // localStorage：逐一刪除，⚠ 唔可以用 clear()——
+    // clear() 會連 theme、user_class 一齊殺，令使用者登出後主題同班級都跑掉。
+    AUTH_SENSITIVE_KEYS.forEach(function (key) {
+        try { Storage.remove(key); } catch (error) { /* 略過 */ }
+    });
+
+    // sessionStorage：本 App 只用嚟存短期 session，一次過掃走相關前綴
+    try {
+        const doomed = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i) || '';
+            if (key.indexOf('auth_') === 0 || key.indexOf('appdb_') === 0) doomed.push(key);
+        }
+        doomed.forEach(function (key) {
+            try { sessionStorage.removeItem(key); } catch (error) { /* 略過 */ }
+        });
+    } catch (error) {
+        // 私密模式可能停用 sessionStorage，唔影響登出流程
+    }
+}
+
+/**
+ * 徹底抹除本機使用者資料（公用電腦／裝置移交情境）。
+ * ⚠ 破壞性操作：課表、頭像、班級綁定全部消失且無法復原。
+ *   只有 authSignOutSecure({ wipeLocalData: true }) 會呼叫它。
+ */
+function authWipeLocalData() {
+    const doomed = [];
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i) || '';
+            // 涵蓋 db.js 的課表集合（appdb_v1_*）與雲端鏡像（appdb_mirror_v1_*）
+            if (key.indexOf('appdb_v1_') === 0 || key.indexOf('appdb_mirror_v1_') === 0) {
+                doomed.push(key);
+            }
+        }
+    } catch (error) { /* 略過 */ }
+
+    doomed.forEach(function (key) {
+        try { Storage.remove(key); } catch (error) { /* 略過 */ }
+    });
 }
 
 // 切換到本機已有的另一個帳號（裝置層級的帳號切換，不需重新輸入密碼）
@@ -292,18 +473,29 @@ function authSwitchAccount(accountId, remember) {
     const account = authFindAccount(accountId);
     if (!account) return { ok: false, error: '找不到這個帳號' };
     authStartSession(account, remember !== false);
+
+    // 切換帳號＝同時切換雲端身分：用該帳號自己的續期權杖換一張新權杖。
+    // 背景進行、唔阻塞 UI；換唔到（憑證過期／離線）只會令雲端同步暫停，
+    // 本機功能完全不受影響。
+    if (typeof cloudActivateAccount === 'function' && typeof cloudEnabled === 'function' && cloudEnabled()) {
+        try { cloudActivateAccount(account.id); } catch (error) { /* 背景 */ }
+    }
     return { ok: true, account: account };
 }
 
 /**
  * 從「這部裝置」的帳號清單移除帳號。
- * ⚠ 刻意唔會刪除雲端（Google Sheets）上的紀錄：
+ * ⚠ 刻意唔會刪除雲端（Supabase profiles）上的紀錄：
  *   呢個動作只係本機清單整理，帳號資料本身應該永續保存。
- *   真正要刪除雲端帳號，請用 cloudDeleteAccount(id)（開發者面板）。
+ *   真正要刪除雲端紀錄，請用 cloudDeleteAccount(id)（開發者面板）。
+ * ⚠ 但本機儲存的續期權杖一定要清走，否則移除之後仍然可以用它偷偷同步。
  */
 function authRemoveAccount(accountId) {
     const index = authAccounts.findIndex(a => a.id === accountId);
     if (index < 0) return false;
+
+    // 必須在 splice 之前清憑證（之後就查唔到這個帳號了）
+    if (typeof sbForgetCredential === 'function') sbForgetCredential(accountId);
 
     authAccounts.splice(index, 1);
     authPersistAccounts();
@@ -326,38 +518,69 @@ function authRemoveAccount(accountId) {
 async function authChangePassword(accountId, currentPassword, newPassword) {
     const account = authFindAccount(accountId);
     if (!account) return { ok: false, error: '找不到這個帳號' };
-    if (!account.passwordHash || !account.salt) {
-        return { ok: false, error: '這個帳號沒有密碼，無法變更' };
+
+    const current = String(currentPassword == null ? '' : currentPassword);
+    if (!current) return { ok: false, error: '請輸入目前密碼' };
+
+    const check = authPasswordCheck(newPassword);
+    if (!check.ok) return { ok: false, error: check.error };
+    // 先做本機檢查，避免明明唔合法都送一次網絡請求出去
+    if (String(newPassword) === current) return { ok: false, error: '新密碼不可以與目前密碼相同' };
+
+    // ⚠ 密碼由 Supabase Auth 管理：前端唔再計算雜湊，亦唔再保存任何雜湊值。
+    //   變更前必須先通過「目前密碼」驗證，否則任何人拿到未鎖定的裝置就可直接改密碼。
+    if (typeof cloudEnabled !== 'function' || !cloudEnabled() || typeof cloudUpdatePassword !== 'function') {
+        return { ok: false, error: '雲端同步未啟用，無法變更密碼' };
     }
 
-    const passed = await authVerifyPassword(account, currentPassword);
-    if (!passed) return { ok: false, error: '目前密碼不正確' };
+    const result = await cloudUpdatePassword(account.email, current, newPassword);
+    if (!result || !result.ok) {
+        return {
+            ok: false,
+            error: (result && result.message) || '無法變更密碼，請檢查網絡後再試',
+            offline: !!(result && result.offline)
+        };
+    }
 
-    // 每次改密碼都換一組新的鹽值：舊雜湊值連同舊鹽一併失效
-    account.salt = authRandomHex(16);
-    account.passwordHash = await authHashPassword(newPassword, account.salt);
-    authTouch(account);
-    authPersistAccounts();
+    // 本機唔再保存任何密碼資料，所以呢度冇欄位需要更新
     return { ok: true, account: account };
 }
 
 /**
  * 變更帳號綁定的電郵。同一個電郵不可以同時屬於兩個本機帳號，
  * 否則 authFindByEmail() 會出現不確定的結果。
+ * ⚠ Email 同時係 Supabase Auth 的登入身分，所以必須「先改雲端、後改本機」；
+ *   而且 Supabase 預設會寄確認連結到新信箱，確認前唔可以改本機，
+ *   否則本機 Email 同 auth.users 唔一致，使用者會即刻登入唔到。
+ * @returns {Promise<{ok:boolean, error?:string, pendingConfirmation?:boolean, account?:Object}>}
  */
-function authUpdateEmail(accountId, email) {
+async function authUpdateEmail(accountId, email) {
     const account = authFindAccount(accountId);
     if (!account) return { ok: false, error: '找不到這個帳號' };
 
     const next = authNormalizeEmail(email);
     if (!authValidEmail(next)) return { ok: false, error: 'Email 格式不正確' };
+    if (next === authNormalizeEmail(account.email)) return { ok: false, error: '這與目前的 Email 相同' };
 
     const occupied = authAccounts.find(item =>
         item && item.id !== accountId && authNormalizeEmail(item.email) === next);
     if (occupied) return { ok: false, error: '這個 Email 已被另一個帳號使用' };
 
+    if (typeof cloudEnabled !== 'function' || !cloudEnabled() || typeof cloudUpdateUserEmail !== 'function') {
+        return { ok: false, error: '雲端同步未啟用，無法變更 Email' };
+    }
+
+    const result = await cloudUpdateUserEmail(next);
+    if (!result || !result.ok) {
+        return { ok: false, error: (result && result.message) || '無法變更 Email，請檢查網絡後再試' };
+    }
+
+    if (result.pendingConfirmation) {
+        return { ok: true, pendingConfirmation: true, email: next, account: account };
+    }
+
     account.email = next;
-    account.provider = account.passwordHash ? 'email' : account.provider;
+    account.provider = 'email';
     authTouch(account);
     authPersistAccounts();
     authPersistFlags();
@@ -400,48 +623,58 @@ async function authSignUpWithEmail(input) {
     if (!name) return { ok: false, error: '請輸入你的名字' };
     if (name.length > 20) return { ok: false, error: '名字最多 20 個字' };
     if (!authValidEmail(email)) return { ok: false, error: 'Email 格式不正確' };
-    if (password.length < 6) return { ok: false, error: '密碼至少需要 6 個字元' };
+
+    const check = authPasswordCheck(password);
+    if (!check.ok) return { ok: false, error: check.error };
     if (password !== confirm) return { ok: false, error: '兩次輸入的密碼不一致' };
     if (authFindByEmail(email)) return { ok: false, error: '這個 Email 已經註冊過了，請直接登入' };
 
-    const salt = authRandomHex(16);
-    const passwordHash = await authHashPassword(password, salt);
-
     const account = authNormalizeAccount({
-        id: 'acc_' + authRandomHex(6),
         name: name,
         email: email,
         provider: 'email',
-        salt: salt,
-        passwordHash: passwordHash,
         avatar: input.avatar || '',
         createdAt: Date.now(),
         lastLoginAt: Date.now()
     });
 
-    // 雲端註冊要「等」：必須即時知道這個 Email 有冇在其他裝置用過，
-    // 唔可以樂觀放行（否則會出現同一個 Email 兩份互不相干的帳號）。
-    let cloudOffline = false;
-    if (typeof cloudRegisterAccount === 'function') {
-        const cloud = await cloudRegisterAccount(account);
-        if (cloud && !cloud.ok && cloud.fatal) {
-            return { ok: false, error: '這個 Email 已經在雲端註冊過了，請直接登入' };
-        }
-        // 連線失敗 → 已排入佇列，本機照常可用，上線後自動補送
-        cloudOffline = !!(cloud && cloud.queued);
+    // ⚠ 註冊必須連線：帳號由 Supabase Auth 建立（密碼於伺服器以 bcrypt 儲存），
+    //   前端無能力離線建立一個「之後真係登入得到」的帳號。
+    //   舊版可以樂觀寫入本機再排隊補送，但咁樣只會產生幽靈帳號（登入唔到、又同步唔到），
+    //   所以改為直接回報失敗。
+    const cloudOn = typeof cloudEnabled === 'function' && cloudEnabled();
+    if (!cloudOn) {
+        return { ok: false, error: '雲端同步未啟用，無法註冊帳號（請在 auth-config.js 填寫 Supabase 設定）', reason: 'DISABLED' };
     }
 
-    authAccounts.push(account);
-    authPersistAccounts();
-    authStartSession(account, input.remember !== false);
+    const cloud = await cloudRegisterAccount(account, password);
+    if (!cloud || !cloud.ok) {
+        return {
+            ok: false,
+            error: (cloud && cloud.message) || '無法完成註冊，請檢查網絡後再試',
+            reason: (cloud && cloud.code) || 'CLOUD_FAIL',
+            offline: !!(cloud && cloud.offline)
+        };
+    }
 
-    return { ok: true, account: account, cloudOffline: cloudOffline };
+    // 專案開啟了「Confirm email」→ 未有 session，唔可以當作已登入
+    if (cloud.pendingConfirmation) {
+        return { ok: true, pendingConfirmation: true, account: null, email: email };
+    }
+
+    const remote = authUpsertAccount(cloud.account || account) || account;
+    authPersistAccounts();
+    authStartSession(remote, input.remember !== false);
+
+    return { ok: true, account: remote, cloudOffline: false };
 }
 
 /**
- * Email 登入。讀取策略＝「雲端為真實來源，本機為離線後備」：
- *   ① 雲端同步（有網時）：由 Google Sheets 驗證，成功就一併把最新資料寫回本機快取
- *   ② 離線／雲端查唔到 → 落回本機快取驗證（離線優先，地鐵／校內弱網都用得）
+ * Email 登入。密碼一律由 Supabase Auth 驗證（前端無法、亦唔會自行比對密碼）。
+ *   ① 有網時：交 Supabase Auth 驗證，成功就一併把 profiles 最新資料寫回本機快取。
+ *   ② 連唔到線時：只放行「這部裝置曾經登入過、仲持有續期權杖」的帳號
+ *      （等同舊版「本機快取驗證」的信任層級：信任這部裝置）。
+ *      可以用 auth-config.js 的 allowOfflineSignIn:false 完全關閉此行為。
  */
 async function authSignInWithEmail(input) {
     const email = authNormalizeEmail(input.email);
@@ -450,74 +683,85 @@ async function authSignInWithEmail(input) {
     if (!email) return { ok: false, error: '請輸入 Email' };
     if (!password) return { ok: false, error: '請輸入密碼' };
 
-    let account = authFindByEmail(email);
+    const account = authFindByEmail(email);
     const cloudOn = typeof cloudEnabled === 'function' && cloudEnabled();
-    let remote = null;
 
-    if (cloudOn) {
-        // salt 係明文無妨（它的作用只係令相同密碼產生唔同雜湊）；
-        // 明碼密碼永遠唔會離開裝置，送去雲端的只有雜湊值。
-        remote = await cloudSignIn(email, password);
-
-        if (remote.ok) {
-            const merged = authUpsertAccount(remote.account);
-            if (merged) {
-                authStartSession(merged, input.remember !== false);
-                return { ok: true, account: merged, fromCloud: true };
-            }
-        }
-
-        // 雲端明確判定密碼錯 → 直接回報，唔可以再落本機（否則改完密碼仍然登入得到）
-        if (remote.code === 'BAD_PASSWORD') {
-            return { ok: false, error: '密碼錯誤，請重新輸入', reason: 'BAD_PASSWORD' };
-        }
-        if (remote.code === 'NO_PASSWORD') {
-            return { ok: false, error: '這個帳號未設定密碼，請重新註冊', reason: 'NO_PASSWORD' };
-        }
-        // NO_ACCOUNT / 連線失敗 → 落到本機快取（可能係離線期間建立的帳號）
+    if (!cloudOn) {
+        return {
+            ok: false,
+            error: '雲端同步未啟用，無法驗證密碼登入（請在 auth-config.js 填寫 Supabase 設定）',
+            reason: 'DISABLED'
+        };
     }
 
-    if (!account) {
-        // 雲端明確話冇呢個帳號，而本機亦冇快取 → 直接引導去註冊
-        if (remote && remote.code === 'NO_ACCOUNT') {
-            return { ok: false, error: '帳號不存在，請先切換至註冊', reason: 'NO_ACCOUNT' };
+    const remote = await cloudSignIn(email, password);
+
+    if (remote && remote.ok) {
+        const merged = authUpsertAccount(remote.account);
+        if (merged) {
+            authStartSession(merged, input.remember !== false);
+            return { ok: true, account: merged, fromCloud: true };
         }
-        // 逾時／連線失敗，而且本機冇快取 → 講清楚係網絡問題，唔好講成「帳號問題」
-        if (remote && remote.offline) {
+    }
+
+    // 雲端明確判定密碼錯 → 直接回報，唔可以再落本機
+    // （否則改完密碼之後，用舊密碼一樣登入得到）
+    if (remote && remote.code === 'BAD_PASSWORD') {
+        return { ok: false, error: '密碼錯誤，請重新輸入', reason: 'BAD_PASSWORD' };
+    }
+    if (remote && remote.code === 'NO_CONFIRM') {
+        return {
+            ok: false,
+            error: '這個 Email 尚未完成驗證，請先到信箱點擊確認連結',
+            reason: 'NO_CONFIRM'
+        };
+    }
+    if (remote && remote.code === 'RATE_LIMIT') {
+        return { ok: false, error: '嘗試次數過多，請稍後再試', reason: 'RATE_LIMIT' };
+    }
+    if (remote && remote.code === 'NO_ACCOUNT') {
+        return { ok: false, error: '帳號不存在，請先切換至註冊', reason: 'NO_ACCOUNT' };
+    }
+
+    // 以下為「連唔到線」路徑
+    if (remote && remote.offline) {
+        const allowOffline = authConfig().allowOfflineSignIn !== false;
+
+        if (account && account.sbRefreshToken && allowOffline) {
+            // 這部裝置登入過這個帳號 → 先放行本機資料，
+            // 恢復連線後 cloudActivateAccount() 會換新權杖並重新校驗。
+            authStartSession(account, input.remember !== false);
+            if (typeof cloudActivateAccount === 'function') cloudActivateAccount(account.id);
+            return { ok: true, account: account, offlineFallback: true, offlineNoVerify: true };
+        }
+
+        if (account && !allowOffline) {
             return {
                 ok: false,
-                error: '雲端連線逾時，已切換至離線模式',
-                reason: 'TIMEOUT',
+                error: '離線模式不支援密碼登入，請連接網絡後再試',
+                reason: 'OFFLINE_NO_VERIFY',
                 offline: true
             };
         }
-        if (cloudOn) {
-            return { ok: false, error: '這部裝置沒有這個帳號的快取，而且目前無法連線到雲端，請檢查網絡後再試' };
-        }
-        return { ok: false, error: '找不到這個 Email 的帳號', reason: 'NO_ACCOUNT' };
-    }
 
-    if (!account.passwordHash) {
-        return { ok: false, error: '這個帳號是用「' + authProviderLabel(account.provider) + '」建立的，請用同一方式登入' };
-    }
-
-    const ok = await authVerifyPassword(account, password);
-    if (!ok) {
-        // 離線時本機雜湊對不上，未必等於密碼錯（可能雲端改過密碼），唔應該誤導用戶
-        if (remote && remote.offline) {
+        if (account) {
             return {
                 ok: false,
-                error: '雲端連線逾時，已切換至離線模式，請稍後再試',
-                reason: 'TIMEOUT',
+                error: '離線時無法驗證密碼。這個帳號在這部裝置沒有可用的登入憑證，請連接網絡後再試',
+                reason: 'OFFLINE_NO_VERIFY',
                 offline: true
             };
         }
-        return { ok: false, error: '密碼不正確', reason: 'BAD_PASSWORD' };
+
+        return {
+            ok: false,
+            error: '這部裝置沒有這個帳號的快取，而且目前無法連線到雲端，請檢查網絡後再試',
+            reason: 'TIMEOUT',
+            offline: true
+        };
     }
 
-    authStartSession(account, input.remember !== false);
-    // 用本機快取成功登入，但同時知道雲端今次連唔上 → 通知用戶目前係離線狀態
-    return { ok: true, account: account, offlineFallback: !!(remote && remote.offline) };
+    return { ok: false, error: '登入失敗，請稍後再試', reason: 'UNKNOWN' };
 }
 
 function authProviderLabel(provider) {

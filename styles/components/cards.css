@@ -181,6 +181,56 @@
     margin-top: 12px;
 }
 
+/* ── NOW 卡「今日無課堂」空狀態 ─────────────────────────────────────────
+   由 main.js 套用 .status-card.now.no-class（已唔再用 style="" inline）。
+
+   ⚠ 呢張卡嘅底色刻意「固定深灰、唔跟主題」：淺色主題之下 --card-purple 係
+     純白，配唔起「無課」想要嘅停頓感。但代價係文字顏色必須硬寫亮白 ——
+     淺色主題 --text-dark = #1C1C1E（近黑），疊喺呢個 #2c2c2e 深底上，
+     對比只有約 1.05:1，「今日無課堂」會完全隱形（就係之前嘅 bug）。
+   ⚠ 所以本區塊一律硬寫 #ffffff，絕對唔可以寫 var(--text-dark)。
+   ⚠ 選擇器帶 4 個 class（.status-card.now.no-class …），
+     必然蓋得過上面 .status-card.now 嘅 --now-red 標頭底色。
+
+   對比度（WCAG 2.1）：
+     #ffffff on #2c2c2e ≈ 13.9:1（AAA，需要 4.5:1）
+     #ffffff on #48484a ≈  9.1:1（AAA） */
+.status-card.now.no-class {
+    background-color: #3a3a3c;
+}
+
+/* 中性灰標頭：同「無課」嘅停頓感一致，唔用 --now-red 搶眼 */
+.status-card.now.no-class .status-header {
+    background-color: #48484a;
+}
+
+/* 「狀態 / 無課」標籤同樣要清晰：標頭文字本身繼承 .status-card 嘅 white，
+   呢度只把 .countdown-label 自帶嘅 opacity 0.9 補滿（9.1:1 已達 AAA）。 */
+.status-card.now.no-class .status-header .countdown-label {
+    opacity: 1;
+}
+
+.status-card.now.no-class .status-body {
+    background-color: #2c2c2e;
+    color: #ffffff;                         /* ⚠ 硬寫亮白，唔可以用 var(--text-dark) */
+    display: flex;
+    flex-direction: column;
+    align-items: center;                    /* 文字居中 */
+    justify-content: center;
+    min-height: 128px;                      /* 同有課卡片視覺高度接近，唔會縮水 */
+    padding: 26px 14px;
+}
+
+.status-card.now.no-class .status-body .subject {
+    font-size: 28px;
+    letter-spacing: 0;                      /* 覆寫 .subject 嘅 -1px：中文唔應該壓字距 */
+    margin-bottom: 0;
+    color: #ffffff;
+    /* 文字微光：純白疊深底本身已達 AAA，呢層光暈純為質感，唔係可讀性所需。 */
+    text-shadow: 0 0 14px rgba(255, 255, 255, 0.28),
+                 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
 .status-card.coming .status-header { background-color: var(--coming-green); }
 
 .status-card.coming .status-body .time-range {

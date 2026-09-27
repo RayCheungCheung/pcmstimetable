@@ -46,6 +46,12 @@ const SPLASH_POLL_MS = 120;
 const SPLASH_HINT_HOLD_MS = 800;
 const DATA_TIMEOUT_MS = 1200;
 
+// Splash 收尾 watchdog（最後防線，只在啟動流程「死咗」時才觸發）
+//   ＝ 正常最壞情況（SPLASH_MAX_MS ＋ 提示停留 ＋ 品牌轉場 ＋ 淡出）再加 2s 緩衝。
+//   ⚠ 正常啟動永遠唔會用到佢。佢存在嘅唯一目的：萬一 initApp() 卡死或拋錯，
+//     都保證 #splash-screen（連任何殘留嘅巨型 Logo）一定會被收走，唔會擋住主介面。
+const SPLASH_WATCHDOG_MS = SPLASH_MAX_MS + SPLASH_HINT_HOLD_MS + SPLASH_LEAVE_MS + SPLASH_FADE_MS + 2000;
+
 // 底部提示文案（規範例子：正在獲取最新課表…／重新連線中）
 const SPLASH_TEXT_LOADING = '正在獲取最新課表…';
 const SPLASH_TEXT_RETRY = '重新連線中…';
@@ -272,7 +278,7 @@ async function revalidateAppData() {
     syncAccountCloudSilently();
 }
 
-// ---------- 帳號雲端同步（Google Sheets，背景執行） ----------
+// ---------- 帳號雲端同步（Supabase，背景執行） ----------
 /**
  * 啟動時的背景帳號同步：
  *   ① 先補送離線期間累積的寫入（例如斷網時改過班級）
@@ -376,6 +382,12 @@ function initAppShell() {
     // 日曆初始化邏輯 scheduleInitDatePicker() 一併刪除；日期切換只靠今天 / 明天。
 
     purgeLegacyDevFlags();
+
+    // 開發者模式：向伺服器同步目前角色（角色唯一可信來源係伺服器，唔係 localStorage）。
+    // ⚠ 必須排喺 initProfile()（＝ authInit()）之後 —— 提早呼叫會讀唔到
+    //   目前帳號／session，角色永遠同步唔到（見 devtools.js 開機初始化註解）。
+    //   用 typeof 守衛，devtools.js 未載入時安全略過。
+    if (typeof devBootstrap === 'function') devBootstrap();
 
     renderWeeklyGrid();
     renderHolidays();
@@ -775,11 +787,32 @@ function finishBrandSplash(startedAt, firstLoad) {
         // ---- ③ 品牌轉場（白圓擴散 ＋ Logo 放大）→ 淡出 → 移除節點 ----
         splash.classList.add('splash-leaving');
         await wait(SPLASH_LEAVE_MS);
+
+        // 淡出同時「落 inline style」：唔再單純靠 #splash-screen.hidden 嘅
+        // CSS transition（該規則喺 index.html 內嵌 critical CSS，一旦樣式表
+        // 版本唔一致就唔生效）→ 保證 Splash 一定收得走，唔會殘留巨型 Logo。
+        splash.style.transition = 'opacity ' + SPLASH_FADE_MS + 'ms linear';
+        splash.style.opacity = '0';
         splash.classList.add('hidden');
+
         await wait(SPLASH_FADE_MS);
-        splash.classList.add('removed');
-        if (splash.parentNode) splash.parentNode.removeChild(splash);
+        dropSplashScreen();
     })();
+}
+
+/**
+ * 徹底收走 Splash（idempotent：任何時候再叫都安全）
+ *   ① 直接落 inline style display: none —— 唔依賴任何 CSS class
+ *   ② 加 .removed —— 有 CSS 時連 ::after 白圓／compositing layer 都即刻釋放
+ *   ③ 移除節點 —— 連 160px 品牌塊、動畫、事件一併釋放
+ * 由 finishBrandSplash() 正常收尾同 bootApp() watchdog 共用。
+ */
+function dropSplashScreen() {
+    const splash = document.getElementById('splash-screen');
+    if (!splash) return;
+    splash.style.display = 'none';
+    splash.classList.add('removed');
+    if (splash.parentNode) splash.parentNode.removeChild(splash);
 }
 
 // 底部微弱提示（資料未就緒時嘅優雅交代）：文字只喺有變時才寫入，唔會重複觸發 reflow
@@ -1819,17 +1852,21 @@ function updateRealtimeStatus() {
                 </div>
             `;
         } else {
+            // 今日已無課：改用 .no-class 類別，樣式全部集中喺 cards.css。
+            // ⚠ 唔可以再 inline style 硬寫深色底 —— 淺色主題嘅 --text-dark 係近黑
+            //   （#1C1C1E），疊落 #2c2c2e 深底會令「今日無課堂」隱形。
+            //   詳見 cards.css 嘅 .status-card.now.no-class 區塊註解。
             html += `
-                <div class="status-card now" style="background-color: #444;">
-                    <div class="status-header" style="background-color: #666;">
+                <div class="status-card now no-class">
+                    <div class="status-header">
                         <div>NOW</div>
                         <div class="countdown">
                             <div class="countdown-label">狀態</div>
                             <div class="countdown-number">無課</div>
                         </div>
                     </div>
-                    <div class="status-body" style="background-color: #2c2c2e;">
-                        <div class="subject" style="font-size: 28px;">今日無課堂</div>
+                    <div class="status-body">
+                        <div class="subject">今日無課堂</div>
                     </div>
                 </div>
             `;
@@ -2171,8 +2208,25 @@ function searchByKeyword(keyword) {
 // 版面幾何量測依然準確），令初始化最早可以開始：
 //   · 資料請求最早發出 → 1.2 秒超時上限由呢一刻開始計，最準確
 //   · Splash 動畫同資料載入真正並行，唔會互相拖慢
+function bootApp() {
+    // Splash 保險：initApp() 拋錯或卡死都會令 #splash-screen 永遠留在畫面上
+    // （用戶見到嘅就係「巨型 Logo 一直擋住主介面」）→ 主介面永遠優先。
+    const watchdog = setTimeout(() => {
+        console.warn('[Init] Splash 收尾超時 → 強制移除，交還主介面');
+        dropSplashScreen();
+    }, SPLASH_WATCHDOG_MS);
+
+    Promise.resolve()
+        .then(initApp)
+        .catch((e) => {
+            console.error('[Init] 啟動流程出錯:', e);
+            dropSplashScreen();
+        })
+        .then(() => clearTimeout(watchdog));
+}
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initApp, { once: true });
+    document.addEventListener('DOMContentLoaded', bootApp, { once: true });
 } else {
-    initApp();
+    bootApp();
 }

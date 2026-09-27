@@ -428,6 +428,94 @@
     background-color: rgba(142, 142, 147, 0.35);
 }
 
+/* ================= 彈窗 C：老師全級總課表（週課表網格） =================
+   跨班級掃描嘅結果，用傳統「橫軸＝星期 × 縱軸＝節次」網格呈現。
+   每格顯示「科目 + 授課班級標籤」，一眼睇出邊一節喺邊一班上課。
+   骨架沿用彈窗 A 嘅 .week-modal-table，只加闊節次欄、加高格仔、加標籤。
+   ⚠ 呢批規則排喺 .week-modal-table .wm-cell 之後，靠源碼次序覆蓋（同特異度）。 */
+
+/* 加寬彈窗：預設 380px 扣掉 padding 只剩 340px 分 7 欄，
+   每欄約 47px，會令「科目 + 班級標籤」擠壓變形。 */
+.info-modal-content.is-wide {
+    max-width: 470px;
+}
+
+/* 手機上唔擠壓變形：網格保持最小可讀寬度，超出就橫向滾動 */
+.week-modal-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+}
+
+.tg-grid {
+    min-width: 420px;
+}
+
+/* 節次欄要放「第X節 + 起訖時間」，比彈窗 A 闊 */
+.tg-grid .wm-period {
+    width: 48px;
+}
+
+.tg-grid .wm-period__n {
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.tg-grid .wm-period__t {
+    font-size: 8px;
+    line-height: 1.3;
+}
+
+/* 格仔要放科名 + 班級標籤（甚至多班），唔可以鎖死高度 */
+.tg-grid .wm-cell {
+    height: auto;
+    min-height: 44px;
+    padding: 4px 3px;
+    vertical-align: top;
+}
+
+/* 同一格內「同科跨多班」為一組；科目唔同就會有多組，用虛線分隔 */
+.tg-cell + .tg-cell {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px dashed var(--divider-color);
+}
+
+.tg-cell__badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px;
+    margin-top: 3px;
+}
+
+/* 授課班級標籤：本功能重點，一眼睇得出係邊一班。
+   用主題主色做實心底 + 白字，深淺兩種主題都夠突出，唔使額外寫深色覆寫
+   （同 .class-prompt__btn 同一個配色慣例）。 */
+.tg-cell-badge {
+    max-width: 100%;
+    padding: 1px 5px;
+    border-radius: 999px;
+    background-color: var(--primary-color);
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 空狀態 / 載入失敗提示 */
+.info-modal-empty {
+    padding: 22px 6px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
 /* ================= 未選班級：課表區域引導卡 =================
    首次開啟（localStorage 未有 user_class）時，課表區域唔會顯示任何班級課表，
    改為顯示這張卡引導選班；顯示狀態由 main.js renderClassPrompt() 切換。 */
