@@ -1,5 +1,347 @@
 // ================= Service Worker =================
-// 版本號升級：4.16.0 → 4.17.0
+// 版本號升級：4.27.0 → 4.28.0
+// 本次變更（天氣卡 1.0.0 → 1.1.0：完全對照設計圖重排，圖示改 SVG 禁用 Emoji）：
+//   1. 🆕 scripts/modules/weather/weather-icons.js（?v=1.0.0）—— 天氣專用
+//      「立體質感」內嵌 SVG 圖示組（weatherGlyph()）：sun / partly / cloud /
+//      shower / rain / storm / mist / typhoon / alert 九款，全部用
+//      userSpaceOnUse 漸變（逐個 shape 各自 objectBoundingBox 會有色階接縫），
+//      每次呼叫配一組唯一 gradient id（同一頁兩粒圖示會撞 id 而借色）。
+//      ⚠ 需求【UI 排版規格】第 1 條明文「禁用 Emoji」：1.0.0 版用 Emoji 嘅
+//        寫法全部拆走，weather.js 亦唔再依賴 icons.js 嘅 contentIcon()。
+//   2. weather.js 1.1.0：左邊永遠係「今日天氣」、右邊膠囊永遠係「特別天氣
+//      報告」—— 危險警告唔再搶走左邊嘅氣溫大字（1.0.0 版會將 title 換成
+//      風球標題），改為整粒右邊膠囊換成「▲ 編號 ＋ 方向」（設計圖：▲8 NW 西北），
+//      風球方向由 Warncode（TC8NE／TC8NW…）或 Description 中文（東北／西北…）判，
+//      「東北」「西南」等兩字方向一定要排喺「東」「西」前面，否則會判錯。
+//      頁內完全冇 Emoji，連 ▲ 都由 CSS border 畫（.wx-card__pill-tri），
+//      因為部分字型會將「▲」當 Emoji 變體處理，喺某些平台會變彩色方塊。
+//   3. weather.css 1.1.0：完全照規格數字 —— 圖示座 56×56、標題 22px/700、
+//      副標題 12px（#8E8E93）、右側膠囊 rgba(255,255,255,0.6) + padding 8px 12px
+//      + border-radius 14px。深色主題另補一組值（規格嗰組係淺色主題值，
+//      疊喺本 App 預設嘅近黑底會灰到睇唔出）。
+//   4. index.html：#wx-card 內移除 .wx-card__badge，改為 .wx-card__pill-signal
+//      （▲ + mark + NW／西北兩行）；新增 weather-icons.js script 標籤；
+//      weather.css／weather.js ?v → 1.1.0；icons.css ?v 2.6.0→2.7.0。
+//   5. icons.css：拆走 1.0.0 版為天氣卡加嘅 .wx-card__icon .emoji-badge 補丁
+//      （以及「內容層 Emoji 准用範圍」嗰段註解）—— 天氣卡唔再係 Emoji 位置。
+//   6. ?v 同步升：icons.css 2.6.0→2.7.0、weather.css／weather.js → 1.1.0、
+//      新增 weather-icons.js（?v=1.0.0）；
+//      SW 註冊 service-worker.js?v=4.28.0，CACHE_NAME → timetable-v4.28.0。
+//      ⚠ 一定要升：SW 對 JS／CSS 係快取優先，唔升就會出現「新 DOM（有
+//        #wx-pill-signal）＋ 舊 weather.js（搵 #wx-badge）」，結果係
+//        右邊膠囊永遠唔會顯示警告、而 #wx-badge 又已經冇咗。
+// 版本號升級：4.26.0 → 4.27.0
+// 本次變更（個人中心卡片重構：下個假期倒數卡 → 澳門即時天氣與惡劣天氣警示卡）：
+//   1. 現象：個人中心首頁最頂一張全寬卡一直係「下個假期：中秋節翌日／還有 N 天」，
+//      同底部「假期」頁完全重複；而真正一開 App 就要知嘅「今日會唔會打風／停課」
+//      反而冇地方睇。
+//   2. 🆕 scripts/modules/weather/（weather.js + weather.css，?v=1.0.0）：
+//      接 SMG 官方 Open Data（免 Key），風球／暴雨警告為最高優先級，
+//      8／9／10 號風球 → 整張卡轉 iOS 警告紅；1／3 號風球、暴雨警告 →
+//      橙黃 Badge；其餘時候顯示實時氣溫 + 天氣描述。
+//      ⚠ 兩個關鍵實作決定（都係實測得出，唔係選擇）：
+//        (a) 需求原文嗰條 xml.smg.gov.mo/c_actualweather.xml「冇」
+//            Access-Control-Allow-Origin（連帶 Origin 請求都唔回），
+//            瀏覽器直連必被 CORS 擋死；www.smg.gov.mo 有同一份檔案嘅鏡像
+//            而且回 ACAO: *，故清單以 www 主機行先、xml 主機做後備。
+//        (b) specInfo.xml 係「特別天氣信息」通報，冇警告時係 Inforce=0 空殼，
+//            風球編號無處可讀 —— 故另外接上 c_typhoon.xml（風球）、
+//            c_rainstorm.xml（暴雨）兩條正式 feed，specInfo 留作補充，
+//            三者取最嚴重嗰個（詳細理由寫喺 weather.js 頂部）。
+//      ⚠ 天氣資料係「即時」資料，抓取一律 cache: 'no-store'；本檔對跨域
+//        請求亦從不攔截（見下面 fetch 監聽只處理同源 scope 請求），
+//        所以唔存在「離線時派上一輪天氣」嘅風險。
+//      快取用原生 localStorage（key: wx_snapshot_v1），刻意唔入 DB 集合：
+//      純粹係上次成功抓到嘅天氣，唔屬於用戶資料。
+//   3. index.html：#stat-holiday* 整組 Banner DOM 換成 #wx-card；
+//      CSS／JS 引用各加一條 ?v=1.0.0；icons.css ?v 2.5.0→2.6.0。
+//   4. profile.js：刪除 renderProfileNextHoliday()（連註解），
+//      renderProfileHome() 亦唔再呼叫（天氣卡自己排程更新，同個人中心重繪脫鈎）；
+//      ⚠ profileUpcomingHoliday() 保留 —— 狀態氣泡仍然要用。
+//   5. main.js：initDbBridge() 內「假期改動 → 重畫假期卡」嗰行掛鈎刪除；
+//      initAppShell() 改為呼叫 weatherInit()（有 typeof 守門，唔 await，
+//      唔可以令首屏等跨域請求）。
+//   6. 清死資源：profile.css 嘅整組 .holiday-banner* 規則刪除（樣式搬去
+//      weather.css）；icons.css 嘅 #stat-holiday-icon .emoji-badge 刪除。
+//   7. ?v 同步升：icons.css 2.5.0→2.6.0、profile.css 3.43.0→3.44.0、
+//      profile.js 3.5.14→3.5.15、main.js 3.5.5→3.5.6；
+//      新增 weather.css / weather.js（?v=1.0.0）；
+//      SW 註冊 service-worker.js?v=4.27.0，CACHE_NAME → timetable-v4.27.0。
+//      ⚠ SW 對 JS／CSS 係快取優先，唔升 ?v ＋ CACHE_NAME，已安裝裝置
+//        只會照跑舊 profile.js（仍然呼叫已刪除嘅 renderProfileNextHoliday
+//        會被 typeof 守門略過，反而係好事）＋ 舊 index.html（假期 Banner
+//        照舊出現，天氣卡永遠唔會現身）。
+// 版本號升級：4.25.0 → 4.26.0
+// 本次變更（UI 簡化：移除排行榜頁頂 Beta 說明欄，Beta 標籤改掛導覽列標題右側）：
+//   1. 現象：進入「老師拖堂排行榜」時，頒獎台卡片之前先有一整段
+//      「BETA 拖堂排行榜已連結雲端資料庫，即時統計正班全體同學提交之拖堂數據。」
+//      資訊框，把榜單本身推落半個螢幕；而同一個「Beta」字眼又同時出現喺
+//      個人中心嘅入口列，同一句話講兩次，版面亦唔夠俐落。
+//   2. overtime.js：刪除該說明框（連 .tag-pill--beta 一併刪走）。
+//      ⚠ 「已連結雲端」呢個資料範圍說明亦一併移除：雲端通嘅時候用戶唔需要
+//        知資料喺邊；連唔上嘅時候下面嘅 .ot-hint--warn 會照實講「以下為
+//        本機紀錄」，兩者本來就重複。
+//      ⚠ 卡片同導覽列之間嘅 16px 內距由 .sub-page__body（padding: 16px）
+//        提供，本檔一行 margin/padding 都冇加 —— 兩處都加就會變 32px
+//        （本專案舊版「卡片浮在半空」就係咁嚟嘅）。
+//   3. index.html ＋ profile.js ＋ profile.css：Beta 標籤改為導覽列標題膠囊。
+//      · #subpage-title 拆成「#subpage-title-text ＋ #subpage-title-badge」；
+//        ⚠ profileShowView() 由寫 #subpage-title.textContent 改為寫內層
+//          text span，唔係就會連個膠囊 DOM 一齊清走，Beta 永遠消失。
+//      · 顯示與否由頁面自己宣告（PROFILE_DETAIL_PAGES[key].badge = 'Beta'），
+//        唔喺 profile.js 硬寫 if (key === 'overtime')：本條 bar 服務全部
+//        子頁面，硬寫就變成 profile.js 反過來依賴 overtime 模組。
+//      · .beta-badge 依需求規格（11px / 600 / 2px 6px / radius 6px / line-height 1）；
+//        ⚠ 字色同底色分主題寫：需求寫死 #007AFF，但本 App 預設深色主題，
+//          #007AFF 疊近黑底對比只有約 3.7:1（低於 AA 4.5:1）；
+//          --primary-color 淺色主題就係需求嗰個 #007AFF，深色主題係 #0A84FF；
+//          底色淺色用需求原值 rgba(0,122,255,0.12)，深色加濃到 0.18。
+//      · ⚠ .beta-badge[hidden] 必須明寫：UA 樣式表嘅 [hidden] { display: none }
+//        敵不過作者寫嘅 display: inline-flex，唔補就會每個子頁面都掛住 Beta。
+//   4. overtime.css：刪走兩條已經冇任何元素使用嘅規則
+//      （.ot-hint .tag-pill--beta、.ot-note .tag-pill--beta）＋ 更新 .ot-hint／
+//      .ot-note 嘅註解（原本寫住「頁頂資料範圍嗰段」已經唔存在）。
+//   5. ?v 同步升：profile.css 3.42.0→3.43.0、overtime.css 1.4.0→1.5.0、
+//      profile.js 3.5.13→3.5.14、overtime.js 1.4.0→1.5.0；
+//      SW 註冊 service-worker.js?v=4.26.0，CACHE_NAME → timetable-v4.26.0。
+//      ⚠ SW 對 JS／CSS 係快取優先，唔升 ?v ＋ CACHE_NAME，已安裝裝置
+//        只會照跑舊 profile.js（冇 badge 邏輯）＋ 舊標題 DOM，
+//        症狀係「標題右側空空如也、頁頂仍然掛住舊說明欄」。
+// 版本號升級：4.24.0 → 4.25.0
+// 本次變更（修復：拖堂計時器嘅條件顯示 —— 未到落堂時間完全隱藏）：
+//   1. 現象：上課期間（例如 09:50~10:30 之間）NOW 卡時間標籤下面一直掛住
+//      「BETA 未到落堂時間，落堂鐘響後先開始得」＋ 一粒撳落去只會出 toast
+//      嘅藍色掣；落堂鐘響之後嗰個版本同之前一模一樣，用戶根本分唔出
+//      「而家開始得」。上課期間版面亦被一句永遠唔用得嘅提示佔住。
+//   2. overtime.js：
+//      · 刪除常數 OVERTIME_IDLE_HINT（「未到落堂時間，落堂鐘響後先開始得」）。
+//      · overtimeTick()：未計時分支加早退 —— overtimeWindowLesson() 回傳
+//        null（未到落堂時間／下一節已開始／窗口已關）就 clearHost 兩個宿主
+//        並 return，即係「完全唔渲染」，連 .overtime-box 容器都唔存在。
+//        ⇒ 時間條件唯一來源仍然係 overtimeWindowLesson()（＝ now >= 本堂
+//          end 且窗口未關），唔另寫一套，否則同 overtimeStart() 嘅入帳
+//          守門員唔同步，會出現「掣出得但入唔到帳」。
+//      · overtimeIdleBoxHtml()：只喺窗口內被呼叫，所以去掉「lesson 可能係
+//        null」嘅分支，開始掣加 class overtime-btn--alert。
+//      · 簽名（data-ot-key）移除 'in'/'out' 一段：窗口外而家直接 clearHost，
+//        唔會再有「窗口外版本」要區分。非正班嘅唯讀提示條只喺窗口內出現。
+//   3. overtime.css：
+//      · 新增主題變數 --ot-alert-fill / --ot-alert-text（警示紅）。
+//        淺色 = 需求原文 rgba(255,59,48,0.12) / #FF3B30（白卡上約 4.5:1）；
+//        深色 = rgba(255,59,48,0.14) / #ff7b73 —— 深色卡 #1e293b 上面
+//        原值只有約 4.1:1、加紅底後跌到約 3.5:1（低於 AA），所以調整。
+//      · 新增 .overtime-btn--alert（淡紅底紅字）。刻意唔用實心紅：
+//        實心紅係「停止計時並記錄」嘅語言（破壞性動作），兩者唔可以撞樣。
+//   4. index.html：overtime.js / overtime.css ?v 1.2.0 → 1.3.0。
+//   5. ⚠ urlsToCache 毋須改：兩個檔案上一版已經入咗清單。
+//   6. ⚠ APP_VERSION 維持 3.5.1 不變（依既有政策，修復唔升介面版本號）。
+//
+// 版本號升級：4.23.0 → 4.24.0
+// 本次變更（重構：次頁面導覽列改成 iOS 圓形膠囊按鈕）：
+//   1. 現象：次頁面（帳戶／已連結裝置／關於我們…）導覽列左邊係「‹ 個人中心」
+//      文字型返回鍵、右邊係冇底框嘅藍色「⋯」，兩粒掣一大一小、
+//      中央標題要讓開 220px，亦冇 iOS 26 嘅圓形膠囊質感。
+//   2. index.html：
+//      · #subpage-back 移除 .back-btn__label（「‹ 上一頁標題」文字標籤），
+//        只留 chevronLeft 圖示（19 → 18px）；「返去邊」改由 aria-label 交代。
+//   3. profile.css：
+//      · 新增主題變數 --lg-nav-fill / --lg-nav-fill-active
+//        （淺色 #EFEFF4 / #E2E2E8，深色 rgba(255,255,255,0.12) / 0.22）——
+//        需求寫死嘅 #EFEFF4 疊落預設深色玻璃導覽列會變成一粒白波。
+//      · .back-btn 由「inline-flex 文字群組」改為 36×36 圓形膠囊：
+//        border-radius: 50% ＋ var(--lg-nav-fill) 底 ＋ --text-main 色箭頭；
+//        ::after { inset: -4px } 將觸控熱區撐到 44×44（圓形維持 36px）；
+//        按壓由 opacity 改為「底色加深 ＋ scale(0.92)」。
+//      · .back-btn__label / .back-btn__label:empty 兩條規則刪除（DOM 已冇）。
+//      · 新增 .sub-page__more 鏡像樣式（同樣 36px 圓形 ＋ 44px 熱區）；
+//        ⚠ 保留 display: flex —— profile.js 收埋佢係寫 el.style.display = 'flex'。
+//      · .sub-page__nav-row 內距 0 6px → 0 16px（圓形左緣對齊下方卡片欄線）。
+//      · .sub-page__title max-width calc(100% - 220px) → calc(100% - 112px)。
+//   4. profile.js：移除 #subpage-back-label 嘅文字寫入，aria-label
+//      （「返回 + 上一頁標題」）保留 —— 純圖示掣冇咗可見文字，佢係唯一線索。
+//      ?v 3.5.12 → 3.5.13；profile.css ?v 3.41.0 → 3.42.0。
+//   5. ⚠ urlsToCache 毋須改：兩個檔案上一版已經入咗清單。
+//   6. ⚠ APP_VERSION 維持 3.5.1 不變（依既有政策，重構唔升介面版本號）。
+//
+// 版本號升級：4.22.0 → 4.23.0
+// 本次變更（修復：老師拖堂排行榜頒獎台排版崩壞）：
+//   1. 現象：TOP1 台座上方嘅姓名／科目／班級溢出到卡片外、台座 3px 獎牌色
+//      頂邊似「切斷」老師名；台座第三行又重覆印一次原始秒數
+//      （大字 15秒 下面再寫 15 秒）；頁頂 Beta 提示係 12px 灰字緊貼卡片。
+//   2. overtime.css 頒獎台：
+//      · 台座高度由 min-height 改為寫死 height，三級階梯 118/90/78
+//        → 140/112/96（級差 ≥16px），唔再俾內容撐成一高一平。
+//      · .ot-podium__info 同 .ot-podium__step 都加 flex: 0 0 auto：
+//        容器一矮，flex 會先壓縮資訊欄高度，睇唔到 overflow 嘅文字照樣
+//        畫出嚟疊上台座頂邊 —— 呢個就係「頂邊切斷姓名」嘅成因。
+//        寫死唔准縮，寧可整個頒獎台撐高（外層 .ios-home 本身可滾動）。
+//      · 台座加 overflow: hidden 做第二重保險：真係唔夠高就喺台座內部剪，
+//        絕對唔會畫出台座去壓住上面嘅姓名。
+//      · .ot-podium__raw（重覆秒數）刪除，改為 .ot-podium__count（共 N 次）。
+//      · .ot-note 保留做頁尾純灰字補充；頁頂改用新增嘅 .ot-hint
+//        （iOS 輕量資訊框：rgba(0,122,255,0.08) 底 + 10px 14px 內距 +
+//        10px 圓角 + 13px 字），框內 Beta 標籤跟框轉藍色系。
+//   3. overtime.js：
+//      · overtimePodiumColHtml() 台座第三行由「原始秒數」改為「共 N 次」；
+//      · overtimeLeaderboardHtml() 頁頂提示由 .ot-note 改為 .ot-hint；
+//      · overtimeDurationParts() 整點小時唔再出「1.0」（改為「1」）。
+//      ?v 1.1.0 → 1.2.0。
+//   4. ⚠ urlsToCache 毋須改：兩個檔案上一版已經入咗清單。
+//   5. ⚠ APP_VERSION 維持 3.5.1 不變（依既有政策，修 bug 唔升介面版本號）。
+//
+// 版本號升級：4.21.0 → 4.22.0
+// 本次變更（修復：倒數頁「拖堂計時器」按鈕完全唔見 / 掣唔喺 NOW 卡入面）：
+//   1. 現象拆解：舊版掣住喺 #overtime-slot（#status-container 之後嘅獨立插槽），
+//      而且只有「拖堂窗口內」（落堂之後、下節響鐘之前）才 render。
+//      即係話上課中（NOW 卡顯示「剩餘時間 09:50 ~ 10:30」）根本就冇窗口，
+//      overtimeTick() 行到 overtimeWindowLesson() 就 return null → 清空插槽
+//      → 用戶見到「按鈕完全消失」，而佢想看嘅一刻正正就係上課中。
+//   2. overtime.js：新增 #overtime-btn-container 掛載點，改為直接嵌喺
+//      NOW 卡 .status-body 最尾（＝時間標籤 .time-range 正下方，用
+//      createElement + appendChild 即場掛入，見 overtimeButtonBox()）。
+//      ⚠ 唔可以喺 index.html 靜態寫死呢個容器：NOW 卡本身係 main.js 每秒
+//        用 innerHTML 砌出嚟嘅字串，HTML 檔入面冇任何節點係「喺 NOW 卡
+//        入面」；靜態 div 只會飄喺 #status-container 出面（即舊症狀）。
+//      · 常駐顯示：未進入拖堂狀態都照出開始掣（窗口外撳落去由
+//        overtimeStart() 出 toast 講清楚原因），唔再「冇窗口就消失」。
+//      · #overtime-slot 改為「後備宿主」：只在「計時中但 NOW 卡唔存在」
+//        （課表載入失敗卡取代咗倒數區）時接住停止掣，唔可以刪。
+//      · 重繪簽名由模組變數 overtimeSlotKey 改為寫喺宿主身上嘅
+//        data-ot-key：NOW 卡一重建就換新節點，簽名留住喺舊節點身上
+//        就會出現「新容器永遠空白」（同一個 bug 換個樣再出現）。
+//      · 掣面圖示由 play 改 timer（秒錶），同 ⏱️ 嘅語意一致。
+//   3. main.js：updateRealtimeStatus() 內 container.innerHTML = html 之後
+//      即叫 overtimeMountNow() 補掛（有 typeof 守門）。重建 = 整塊換新，
+//      唔補掛按鈕就會整整消失一秒，症狀同原本個 bug 一模一樣。
+//      ?v 3.5.4 → 3.5.5。
+//   4. overtime.css：新增 .overtime-box（NOW 卡內部容器：hairline 分隔線
+//      ＋ align-self: stretch）同 .overtime-box__head／__note；
+//      原本嘅 .overtime-slot 規則保留（後備卡仍然要用）。?v 1.0.0 → 1.1.0。
+//      ⚠ 唔可以幫 .overtime-box 套 .overtime-card 嘅底色／圓角／陰影：
+//        .status-body 本身已經係 --card-purple 底，會變成「卡中卡」。
+//   5. ⚠ 快取：main.js、overtime.js、overtime.css 三個檔嘅 ?v 都有改，
+//      CACHE_NAME 一定要開新代際；否則裝置會攞舊 overtime.js（冇
+//      #overtime-btn-container 掛載邏輯）配新 main.js（有補掛呼叫），
+//      症狀係「掣依然唔見」，令人誤以為改動無效。
+//      ⚠ urlsToCache 毋須改：兩個檔案上一版已經入咗清單。
+//   6. ⚠ APP_VERSION 維持 3.5.1 不變（依既有政策，修 bug 唔升介面版本號）。
+//
+// 版本號升級：4.20.0 → 4.21.0
+// 本次變更（新功能：老師拖堂計時器 ＋ 老師拖堂排行榜（Beta））：
+//   1. 新增 scripts/modules/overtime/overtime.js 同 overtime.css（兩個都要入
+//      urlsToCache，見清單內註解）。模組內容：本機紀錄集合（DB 'overtime' ＋
+//      'overtime_active'）、每秒心跳接駁、倒數頁計時卡、排行榜子頁面。
+//   2. icons.js：新增 play／stopSquare／trophy 三個圖示（只服務本模組）。
+//      ?v 2.17.0 → 2.18.0。
+//   3. index.html：
+//      · 倒數頁加 <div id="overtime-slot">，位置刻意喺 #status-container 之外
+//        （倒數區每秒重寫 innerHTML，計時器住喺裡面會連跳字一齊被重建）；
+//      · 個人中心「班級與課表設定」之後加「老師拖堂排行榜」入口列
+//        （帶 .tag-pill--beta 標籤，onclick="profilePushDetail('overtime')"）；
+//      · 引入 overtime.css（必須排喺 profile.css 之後，靠檔案次序贏 .tag-pill）
+//        同 overtime.js（必須排喺 profile.js 之後、main.js 之前）。
+//   4. main.js：updateRealtimeStatus() 內呼叫 overtimeTick(now)。?v 3.5.3 → 3.5.4。
+//      ⚠ 位置必須喺「假期」同「載入失敗」兩個 return 之前 —— 否則放假期間
+//        計時中嘅碼錶會連停止掣一齊消失，秒數照計但用戶冇出口停佢。
+//      ⚠ 呢個 ?v 唔升就等於白做：SW 對 JS 係快取優先，裝置會照跑舊 main.js
+//        （冇呢行掛鈎），症狀係「計時卡永遠唔跳字」。
+//   5. ⚠ 快取：新增兩個檔案 ＋ icons.js 同 main.js 嘅 ?v 有改，
+//      CACHE_NAME 一定要開新代際；否則裝置會攞舊 icons.js（冇 trophy →
+//      入口列左邊變空白）、舊 main.js（計時器唔跳字），
+//      而新加嘅 overtime.js 亦未必入到快取。
+//   6. ⚠ 排行榜目前只係本機資料（雲端只同步帳號，唔同步拖堂紀錄），
+//      所以子頁面頂部明寫「本榜只統計呢部裝置」—— 呢句唔係免責聲明，
+//      而係功能範圍嘅說明，避免用戶以為係全校排名。
+//   7. ⚠ APP_VERSION 維持不變（依既有政策，加功能／改 UI 唔升介面版本號）。
+//
+// 版本號升級：4.19.0 → 4.20.0
+// 本次變更（次頁面返回鍵還原 iOS 原生 Native Stack 外觀）：
+//   ⚠ 現象：全部子頁面共用嘅 #subpage-back 只有一粒 19px 藍色箭頭，
+//     冇「上一頁」文字標籤 —— 用戶睇唔出撳落會返去邊（主頁？帳戶？FAQ？），
+//     視覺上亦係一粒孤零零飄喺左邊嘅箭頭，同右側「⋯」完全失衡。
+//   1. index.html：#subpage-back 由「單一 <span data-icon>」改成
+//      「.back-btn__icon（箭頭）＋ .back-btn__label（上一頁標題）」組合。
+//      ⚠ 標籤刻意留空、由 JS 填：同一個容器服務全部子頁面，入口唔同＝上一頁唔同，
+//        HTML 寫死任何一句都一定會令其餘頁面顯示錯標籤。
+//   2. profile.js：新增 profileBackLabel() —— 由 profileViewStack 頂層推導
+//      「撳返回會去到邊」嘅標題（detail 取 PROFILE_DETAIL_PAGES、其餘取
+//      PROFILE_VIEW_TITLES；堆疊空時同 profileBackView() 嘅 fallback 一致）。
+//      profileShowView() 每次切視圖都同步填文字同 aria-label（「返回 個人中心」），
+//      令讀屏器讀得出走去邊，而唔淨係「返回」。
+//      ⚠ 標籤同實際行為必須同源：顯示「個人中心」就一定要真係返個人中心。
+//   3. profile.css：
+//      · .back-btn 改 inline-flex + gap: 4px + padding: 8px 12px 8px 0
+//        （連箭頭都撳得，唔淨係得 19px 圖示）＋ 明寫 box-sizing: border-box
+//        （44px 高含內距，唔會撐爆 44px 嘅 .sub-page__nav-row）；
+//      · 按壓反饋 :active 由 opacity 0.45 改 0.6（整組箭頭 + 文字一齊變淡）；
+//      · 新增 .back-btn__label（17px / regular / max-width 96px + 省略號）
+//        同 :empty { display: none }（冇標題時唔留 gap 空隙）；
+//      · .sub-page__title 嘅 max-width 由 calc(100% - 96px) 收窄到
+//        calc(100% - 220px)：舊值只預留一粒 44px 掣，而「‹ 個人中心」連內距
+//        約 109px，唔收窄就會令長標題疊住返回鍵文字。中間標題照舊
+//        absolute + left: 50% + translateX(-50%)，唔會被左側返回鍵拉偏。
+//   4. ⚠ 快取：index.html 內 profile.css→3.41.0、profile.js→3.5.12，
+//      所以 CACHE_NAME 一定要開新代際；否則裝置照跑舊 profile.js（冇標籤邏輯）
+//      配新 CSS（箭頭 + 文字排版），就會出現「箭頭同標題疊住」嘅半新半舊畫面。
+//
+// 上一版 4.18.0 → 4.19.0
+// 本次變更（「關於我們」頁：開發者改用相片頭像）：
+//   1. 新增 assets/images/developers/ray-cheung.webp（192×192，5.1KB）
+//      同 chan-hong-tang.webp（192×192，8.4KB）。原圖係 1080²／460² PNG
+//      （530KB／327KB），以 Pillow 置中裁方 → LANCZOS 縮到 192² → WebP q85，
+//      兩個檔合共細過原本一個檔嘅 2%。
+//   2. profile-content.js：PROFILE_DEVELOPER_MEMBERS 每位加 avatar 路徑。
+//   3. profile.js：profileDevMemberHtml() 改為「縮寫做底、<img> 蓋面」——
+//      asset 缺失時仍然睇得見縮寫，唔會變空白圈。
+//   4. profile.css：新增 .dev-member__avatar--photo 同 __avatar-img。
+//   5. profile.js：initProfile() 加 window 捕捉階段嘅 error 監聽 ——
+//      開發者頭像載入失敗時移除該 <img>，令底層縮寫乾淨露出（唔會出現
+//      「爛圖示疊住縮寫」）。唔用 inline onerror，避免阻礙日後收窄 CSP。
+//      ⚠ 過程中曾誤把 */ 加进區塊註解中段而令 profile.js 全檔解析失敗
+//        （徵狀：所有 profile 全域函式 undefined，main.js 報
+//        initProfile is not defined）。呢類錯誤 ESLint 未必捉到，
+//        改動註解後一定要真正載入頁面驗證。
+//   6. ⚠ PRECACHE 加入呢兩個 webp：頭像雖然細，但唔入清單就會出現
+//      「離線時文字照出、頭像變爛圖」嘅半爛狀態。
+//      ⚠ 同時修正原本嘅決定：舊版註解寫「assets/ 唔應該為此新增二進位資產」，
+//        該決定已由資料擁有者推翻（見 profile.js 同一段註解）。
+//   7. ⚠ 快取：index.html 內 profile.css→3.40.0、profile-content.js→3.5.9、
+//      profile.js→3.5.11，所以 CACHE_NAME 一定要開新代際。
+//
+// 上一版 4.17.1 → 4.18.0
+// 本次變更（「關於我們」頁：開發者已驗證標章 ＋ 社群掣點擊防護）：
+//   1. icons.js：新增 verifiedBadge（藍色實心圓章 ＋ 白勾），
+//      依 github／moreHorizontal 嘅既有例外做法，喺路徑自己帶 fill／stroke。
+//   2. profile-content.js：PROFILE_DEVELOPER_MEMBERS 加 verified: true
+//      （Ray Cheung／Chan Hong Tang 兩位）＋ 欄位規範註解。
+//   3. profile.js：profileDevMemberHtml() 改為渲染 .dev-member__name-row，
+//      即「姓名 ＋ 標章」同一水平線（role="img" ＋ aria-label="已驗證"）。
+//   4. profile.css：新增 .dev-member__name-row／.dev-member__badge 樣式；
+//      .dev-social__link 加 position／z-index／pointer-events 點擊防護。
+//   5. ⚠ 快取：index.html 內 profile.css→3.39.0、icons.js→2.17.0、
+//      profile-content.js→3.5.8、profile.js→3.5.9，所以 CACHE_NAME 一定要開
+//      新代際；否則裝置會攞舊 profile.js／CSS，出現「冇章」或者樣式半新半舊。
+//   6. ⚠ 關於「社群掣撳落冇反應」：實測（390x844 同 1180x860 兩個尺寸，
+//      elementFromPoint ＋ 派發真的 pointer／mouse 事件）顯示今版 5 條 <a>
+//      全部撳得中、冇圖層遮擋、冇被 preventDefault。舊版係 <button onclick>，
+//      症狀來自裝置仍然用緊舊快取 → 升 CACHE_NAME ＋ ?v 就係修復本體。
+//
+// 上一版 4.17.0 → 4.17.1
+// 本次變更（資料勘誤：初二正課表科目名漏字 —— 緊急修正）：
+//   ⚠ 現象：初二正（junior2-zheng）週一第 6、7 節顯示「體育與健」，漏咗個「康」字。
+//   1. data/schedules/junior2-zheng.json：subject「體育與健」→「體育與健康」
+//      （同其餘五班／data/schedule.json／data/ocr-2026/*.json 完全一致）。
+//   2. ⚠ 快取：六份班級課表都列喺下面 precache 清單，屬靜態資源 →
+//      必須升 CACHE_NAME（開新代際）先會令已安裝裝置重新 precache 修正後嘅 JSON。
+//   3. index.html：SW 註冊 ?v=4.17.0 → 4.17.1。
+//   · 唔使改 JS：DB.load() 對課表本身就係 stale-while-revalidate
+//     （revalidateScheduleSilently() → DB.load(name, { refresh: true })
+//      會跳過 localStorage 鏡像直接抓網絡再補畫），
+//     所以舊裝置下次連網開 App 就會自動抓到新內容。
+//   · ⚠ 唯一例外：用戶若曾經喺 App 內改過課表（localStorage 覆寫 appdb_v1_<班級>），
+//     背景更新會刻意跳過覆寫版本 → 要喺設定揀「重置為預設值」才會跟隨新檔案。
+//
+// 上一版 4.16.0 → 4.17.0
 // 本次變更（Splash Screen 首屏 Logo 防爆版 ＋ 收尾保險，承 4.16.0 破版修復）：
 //   ⚠ 現象：初次載入嗰 2~3 秒（品牌 Splash），左邊會出現一個佔半屏嘅巨型書本
 //     Logo，Loading 完結後才消失。同 4.16.0 修嘅係同一個病灶（Splash 圖層
@@ -1454,7 +1796,7 @@
 //      main.js?v=3.3.0（移除 initWeather / weatherMaybeRefresh 掛鈎）。
 //   3. icons.js：移除只為天氣卡新增嘅天氣圖示（cloud / cloudSun / cloudMoon / cloudRain /
 //      cloudDrizzle / cloudSnow / cloudLightning / cloudFog / wind / droplet / thermometer）。
-const CACHE_NAME = 'timetable-v4.17.0';
+const CACHE_NAME = 'timetable-v4.28.0';
 const urlsToCache = [
     './',
     './index.html',
@@ -1486,6 +1828,15 @@ const urlsToCache = [
     './scripts/modules/expand/expand.css',
     './scripts/modules/calendar/calendar.js',
     './scripts/modules/calendar/calendar.css',
+    // 澳門即時天氣警示卡。
+    // ⚠ 一定要入清單：個人中心首頁一打開就見到呢張卡，離線（或者喺
+    //   SMG 掛咗嘅時候）冇 CSS 就會見到一坨無樣式文字，比唔顯示更差；
+    //   而天氣「數據」本身係跨域抓取，離線時會用 localStorage 快照補上。
+    './scripts/modules/weather/weather.js',
+    './scripts/modules/weather/weather.css',
+    // 天氣圖示組（weatherGlyph()）。同 weather.js 一樣屬「一打開就見到」
+    // 嘅資源：冇咗就成個左邊圖示座變空格，比唔顯示更差。
+    './scripts/modules/weather/weather-icons.js',
     './scripts/config/auth-config.js',
     './scripts/config/app-config.js',
     './scripts/modules/auth/cloud.js',
@@ -1494,6 +1845,12 @@ const urlsToCache = [
     './scripts/modules/profile/profile-content.js',
     './scripts/modules/profile/profile.js',
     './scripts/modules/profile/profile.css',
+    // 拖堂計時器 + 老師拖堂排行榜（Beta）。
+    // ⚠ 兩個檔都要入清單，唔可以只入 JS：離線時倒數頁嘅計時卡係開 App 即刻
+    //   要畫嘅（每秒心跳都會摸個插槽），冇 CSS 就會見到一張無樣式嘅白卡 ——
+    //   而「倒數頁正常、計時卡爆版」呢種半爛狀態比全頁離線更難察覺。
+    './scripts/modules/overtime/overtime.js',
+    './scripts/modules/overtime/overtime.css',
     './scripts/modules/liquidglass/liquidglass.js',
     './scripts/modules/liquidglass/liquidglass.css',
     // 開發者模式：新檔必須入 precache，否則首次離線開 App 會冇彈窗樣式／邏輯
@@ -1515,7 +1872,12 @@ const urlsToCache = [
     './assets/icons/icon-192.png',
     './assets/icons/icon-512.png',
     './assets/icons/icon-maskable-512.png',
-    './assets/images/app-logo.svg'
+    './assets/images/app-logo.svg',
+    // ⚠ 「關於我們」頁嘅開發者頭像：檔案雖小（5.1KB／8.4KB）但必須入清單 ——
+    //   離線時頭像係由 profile.js 用 <img> 直接抓，唔入快取就會變爛圖，
+    //   而同頁其他內容（純文字）照樣出得嚟，會出現「一半內容爛咗」嘅狀態。
+    './assets/images/developers/ray-cheung.webp',
+    './assets/images/developers/chan-hong-tang.webp'
 ];
 
 // 安裝：快取所有檔案

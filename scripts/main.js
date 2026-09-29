@@ -392,6 +392,12 @@ function initAppShell() {
     renderWeeklyGrid();
     renderHolidays();
 
+    // 澳門即時天氣與惡劣天氣警示卡（個人中心首頁最頂）。
+    // ⚠ 刻意唔 await：weatherInit() 會先畫快取（同步、零網絡），
+    //   再喺背景抓 SMG 嘅 XML；開機流程唔可以等一個跨域請求 ——
+    //   呢個 App 嘅首屏預算係 100ms（FIRST_PAINT_BUDGET_MS）。
+    if (typeof weatherInit === 'function') weatherInit();
+
     if (scheduleLoadFailed) {
         renderScheduleLoadError();
     }
@@ -662,7 +668,9 @@ function initDbBridge() {
     DB.subscribe('holidays', () => {
         holidaysData = DB.get('holidays') || [];
         if (typeof renderHolidays === 'function') renderHolidays();
-        if (typeof renderProfileNextHoliday === 'function') renderProfileNextHoliday();
+        // ⚠ 原 renderProfileNextHoliday() 掛鈎已移除：個人中心首頁嗰張全寬卡
+        //   已經由「下個假期倒數」改成「澳門即時天氣警示卡」（weather.js），
+        //   同假期資料已經完全無關，假期改動唔應該再觸發天氣卡重繪。
         // 假期清單一改（開發者面板 / 雲端同步），課表覆蓋與倒數要即刻跟住變：
         // 由「非假期」變「假期」要收埋課表同倒數；反之要還原。
         if (typeof renderSchedule === 'function') renderSchedule();
@@ -1633,6 +1641,17 @@ function updateRealtimeStatus() {
     const ss = String(now.getSeconds()).padStart(2, '0');
     document.getElementById('live-clock').textContent = `${hh}:${mm}:${ss}`;
 
+    // 拖堂計時器（overtime.js）：本函式係全 App 唯一嘅「每秒心跳」，
+    // 所以計時器唔另開 setInterval，直接搭呢班車（兩條時間軸只會互相追數）。
+    // ⚠ 本函式每秒只喺「倒數頁 active」時先會跑（見 startRealtimeClock），
+    //   但計時器唔會因此走慢：跳字一律由 startedAt 即時推算，唔靠逐秒累加，
+    //   所以離開倒數頁再返嚟，秒數即刻追返正確值，唔會少計。
+    // ⚠ 一定要放喺下面「假期」同「載入失敗」嘅 return 之前：
+    //   否則一放颱風假，計時中嘅碼錶就會連同停止掣一齊消失，
+    //   秒數會一直計落去而用戶冇任何出口停佢。
+    // ⚠ overtime.js 未載入（例如用戶仍命中舊快取）時唔可以 throw。
+    if (typeof overtimeTick === 'function') overtimeTick(now);
+
     // 🎉 假期優先權最高：是日為假期 → 唔顯示任何倒數（NOW / 下一節 / 放學全部唔計），
     //    倒數區改為顯示「假期中 · XX節快樂」狀態膠囊，之後直接 return。
     //    —— 即使課表資料當日照樣有排課都一樣。
@@ -1996,6 +2015,12 @@ function updateRealtimeStatus() {
     if (needRebuild) {
         container.innerHTML = html;
         if (typeof animateCardsIn === 'function') animateCardsIn(container);
+        // 拖堂計時器（overtime.js）嘅按鈕容器係掛喺 NOW 卡 .status-body 最尾
+        // （#overtime-btn-container，即時間標籤正下方）。上面一句 innerHTML
+        // 會連埋佢一齊沖走，所以要即刻補掛 —— 唔補嘅話按鈕會整整消失一秒
+        // （要等下一個 tick 先畫返），症狀同「掣唔見咗」個 bug 一模一樣。
+        // ⚠ overtime.js 未載入（例如用戶仍命中舊快取）時唔可以 throw。
+        if (typeof overtimeMountNow === 'function') overtimeMountNow();
     } else {
         const updateCard = (existingCard, newCard) => {
             if (!existingCard || !newCard) return;

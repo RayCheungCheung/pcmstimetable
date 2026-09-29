@@ -281,8 +281,26 @@ function profileShowView(view, title) {
 
     // 次頁面導覽列標題（同 .profile-topbar__title 共用同一份文字，
     // 只係掛喺唔同層：次頁面用自己條 bar，主頁／登入頁用面板頂部條 bar）
-    const subTitle = document.getElementById('subpage-title');
-    if (subTitle) subTitle.textContent = titleText;
+    // ⚠ 文字一定要寫入 #subpage-title-text（內層 span），唔可以再寫
+    //   #subpage-title.textContent：後者係「文字 ＋ Beta 膠囊」嘅容器，
+    //   寫落去會連個膠囊 DOM 一齊清走，Beta 就永遠消失。
+    const subTitleText = document.getElementById('subpage-title-text');
+    if (subTitleText) subTitleText.textContent = titleText;
+
+    /* ---------- 標題右側嘅 Beta 膠囊 ----------
+       ⚠ 顯示與否由頁面自己宣告（PROFILE_DETAIL_PAGES[key].badge），唔喺呢度
+         寫死任何頁面 key：本條 bar 服務全部子頁面，硬寫 if (key === 'overtime')
+         就會令 profile.js 反過來依賴 overtime 模組（依賴方向倒轉）。
+       ⚠ 一定要有 else 分支去清空：呢條 bar 係共用嘅，由有 badge 嘅頁面
+         返回另一頁時若唔清走，就會出現「關於我們」都掛住 Beta 嘅荒謬情況。 */
+    const subBadge = document.getElementById('subpage-title-badge');
+    if (subBadge) {
+        const badgeText = (view === 'detail' && profileDetailKey)
+            ? String((PROFILE_DETAIL_PAGES[profileDetailKey] || {}).badge || '')
+            : '';
+        subBadge.textContent = badgeText;
+        subBadge.hidden = !badgeText;
+    }
 
     // ⚠ 離開次頁面一定要清走「⋯」：否則返到主頁之後個掣仲喺度，
     //   而佢記住嘅仍然係上一個子頁面嘅動作，就會變成一個做錯事嘅掣。
@@ -294,6 +312,21 @@ function profileShowView(view, title) {
     if (subMore) {
         subMore.style.display =
             (isSubPage && typeof profileCurrentMore === 'function') ? 'flex' : 'none';
+    }
+
+    /* ---------- 次頁面返回鍵嘅無障礙標籤（iOS 圓形「‹」掣） ----------
+       返回鍵已經改成純圖示嘅 36px 圓形掣（唔再顯示「‹ 個人中心」文字），
+       所以 aria-label 係唯一講得出「撳落會返去邊」嘅渠道：
+       上一頁名由 profileBackLabel() 依導覽堆疊即時算，唔可以喺 HTML 寫死
+       （同一個 #subpage-back 服務全部子頁面，入口唔同＝上一頁唔同）。
+       ⚠ 唔可以淨係寫「返回」：讀屏器只會讀出「返回，按鈕」，
+         用戶聽唔出目的地；加上上一頁名（「返回 帳戶」）才完整。
+       ⚠ 舊版仲有 document.getElementById('subpage-back-label') 去寫可見文字，
+         嗰個 span 已經喺 index.html 刪咗 —— 呢度唔好再查佢。 */
+    const subBack = document.getElementById('subpage-back');
+    if (subBack) {
+        const backText = isSubPage ? profileBackLabel() : '';
+        subBack.setAttribute('aria-label', backText ? '返回 ' + backText : '返回');
     }
 
     // ⚠ 面板頂部條 bar 嘅返回掣只服務「非次頁面」（切換帳號清單、未完成引導嘅選班頁）。
@@ -354,6 +387,30 @@ function profilePushDetail(key) {
     }
 
     profilePushView('detail', { title: page.title, detailKey: key, more: page.more });
+}
+
+/**
+ * 返回鍵要顯示嘅「上一頁標題」（iOS 原生 Native Stack 嘅 backButtonTitle）。
+ * 由導覽堆疊頂層推導，即「撳返回會去到邊一頁」；堆疊係空就同
+ * profileBackView() 嘅 fallback 保持一致（主頁／未登入時嘅登入頁）。
+ * ⚠ 一定要同 profileBackView() 用同一套邏輯：顯示「個人中心」就一定要真係返
+ *   個人中心，否則個標籤就係一個講大話嘅 UI。
+ * @returns {string} 標題文字；冇對應標題時回傳 ''（返回鍵只淨低箭頭）
+ */
+function profileBackLabel() {
+    const prev = profileViewStack[profileViewStack.length - 1];
+
+    if (prev) {
+        // detail 子頁面冇固定標題，同 profileBackView() 一樣由註冊表取。
+        if (prev.view === 'detail') {
+            return (PROFILE_DETAIL_PAGES[prev.detailKey] || {}).title || '';
+        }
+        return PROFILE_VIEW_TITLES[prev.view] || '';
+    }
+
+    // 堆疊空：即由 openProfilePanel('account' / 'detail') 直接入到次頁面，
+    // 返回一律返頂層（見 profileBackView() 尾段）。
+    return authGetCurrentAccount() ? PROFILE_VIEW_TITLES.home : PROFILE_VIEW_TITLES.auth;
 }
 
 /** 目前頁面右上角「⋯」被按下 */
@@ -1230,61 +1287,13 @@ function profileResetSettingsSearch() {
     profileClearSettingsSearch();
 }
 
-// 下個假期：由 holidaysData 取最近一個未過期的假期，繪成全寬 Banner
-//   左 → 節日 Emoji 徽章 + 大字標題（下個假期：中秋節翌日）
-//   右 → 高亮倒數（還有 N 天／今天開始／假期中）
-function renderProfileNextHoliday() {
-    const nameNode = document.getElementById('stat-holiday');
-    if (!nameNode) return;
-
-    const iconNode = document.getElementById('stat-holiday-icon');
-    const dateNode = document.getElementById('stat-holiday-date');
-    const leadNode = document.getElementById('stat-holiday-lead');
-    const daysNode = document.getElementById('stat-holiday-days');
-    const unitNode = document.getElementById('stat-holiday-unit');
-
-    const setIcon = value => {
-        if (iconNode) iconNode.innerHTML = contentIcon(value, { size: 26, fallback: 'palmtree' });
-    };
-
-    // 日期計算已抽去 profileUpcomingHoliday()：狀態氣泡同 Banner 共用同一套邏輯
-    const upcoming = profileUpcomingHoliday();
-
-    if (!upcoming) {
-        setIcon('palmtree');
-        nameNode.textContent = '暫無資料';
-        if (dateNode) dateNode.textContent = '假期資料載入後自動更新';
-        if (leadNode) leadNode.textContent = '';
-        if (daysNode) {
-            daysNode.textContent = '—';
-            daysNode.classList.remove('is-text');
-        }
-        if (unitNode) unitNode.textContent = '';
-        return;
-    }
-
-    const holiday = upcoming.item;
-    const daysLeft = upcoming.daysLeft;
-
-    setIcon(holiday.emoji || holiday.icon);
-    nameNode.textContent = holiday.name || '假期';
-
-    if (dateNode) {
-        const weekday = '日一二三四五六'[upcoming.start.getDay()];
-        const range = (holiday.endDate && holiday.endDate !== holiday.date)
-            ? holiday.date + ' ~ ' + holiday.endDate
-            : holiday.date;
-        dateNode.textContent = range + '（' + weekday + '）';
-    }
-
-    const started = daysLeft <= 0;      // 已開始放假：數字改用文字，唔顯示「還有」
-    if (leadNode) leadNode.textContent = started ? '' : '還有';
-    if (daysNode) {
-        daysNode.textContent = daysLeft < 0 ? '假期中' : daysLeft === 0 ? '今天' : String(daysLeft);
-        daysNode.classList.toggle('is-text', started);
-    }
-    if (unitNode) unitNode.textContent = started ? (daysLeft < 0 ? '' : '開始') : '天';
-}
+// ⚠ 原 renderProfileNextHoliday()（個人中心首頁「下個假期」倒數 Banner）已刪除：
+//   該張全寬卡已改為「澳門即時天氣與惡劣天氣警示卡」，邏輯搬去
+//   scripts/modules/weather/weather.js（weatherInit / weatherRenderCard）。
+//   呢度刻意唔保留任何相容空殼 —— 留一個永遠唔會被呼叫嘅函式，只會令人
+//   以為「假期卡仲喺度、只係冇資料」。
+//   ⚠ 假期倒數邏輯本身冇消失：profileUpcomingHoliday() 仍然存在，
+//     狀態氣泡（renderProfileStatus）同假期頁照樣用同一套計算。
 
 function renderProfileHome() {
     const account = authGetCurrentAccount();
@@ -1314,7 +1323,9 @@ function renderProfileHome() {
     //   所以唔再需要在每次重繪時填狀態文字；renderProfileMenu() 已刪除。
 
     renderCloudPill();
-    renderProfileNextHoliday();
+    // ⚠ 呢度唔需要重畫天氣卡：卡片 DOM 係 index.html 嘅靜態節點，
+    //   由 weather.js 自己按排程（開機／10 分鐘／切前台／重新連線）更新，
+    //   同個人中心重繪完全脫鈎（見 weather.js weatherInit()）。
 }
 
 /* ================= 選單卡片狀態（iOS 分組卡片） ================= */
@@ -2858,10 +2869,16 @@ function profileDetailAboutHtml() {
  *  ⚠ 取「全部」字而唔止前兩個：Chan Hong Tang 用前兩字會得出 'CH'，
  *    同需求指明嘅 'CHT' 唔一致。上限 3 個字係防止有人填一段長名，
  *    縮寫撐爆圓形頭像（目前 64px，見 .dev-member__avatar）。
- *  ⚠ 用文字縮寫而唔用相片：本專案冇、亦唔應該為此新增二進位資產
- *    （assets/ 目前只有 App 圖示同 logo）；而遠端頭像 URL 一離線就變爛圖，
- *    同本頁「必須離線可讀」嘅前提直接矛盾。純文字縮寫永遠 render 得出，
- *    而且跟 currentColor 走，深淺主題各自有正確對比。 */
+ *  ⚠ 由 2026-09 起，頭像可以改用相片（member.avatar），原本「本專案唔應該
+ *    為此新增二進位資產」嘅決定已由資料擁有者推翻。改動之後嘅界線係：
+ *    · 相片一定要係「本機資產」＋已加入 service-worker.js 嘅 PRECACHE。
+ *      原本嗰條規則真正要防嘅係「遠端 URL 一離線就變爛圖」（同本頁
+ *      「必須離線可讀」相衝）；資產同 App 一齊入快取就冇呢個問題，
+ *      所以兩者唔矛盾 —— 但反過來講，新增相片時唔加 PRECACHE
+ *      就等於親手把原本嗰個問題帶返嚟。
+ *    · 縮寫唔會消失：冇填 avatar 嘅成員照舊用縮寫；填咗嘅亦會把縮寫
+ *      留在頭像底層做 fallback（見 profileDevMemberHtml）。
+ *  ⚠ 縮寫仍然跟 currentColor 走，深淺主題各自有正確對比。 */
 function profileDevInitials(name) {
     const words = String(name || '').trim().split(/\s+/).filter(Boolean).slice(0, 3);
     const letters = words.map(w => w.charAt(0)).join('');
@@ -2880,8 +2897,17 @@ function profileDevInitials(name) {
  *    冇轉義就等於自己開一個屬性注入入口。
  *  ⚠ data-icon 用嘅 s.icon 係硬編字串（profile-content.js 嘅常數），
  *    唔可以改成由使用者輸入提供（見 profileNavRowHtml 同一段註解）。
- *  ⚠ 頭像用 aria-hidden：佢只係姓名嘅縮寫，讀屏讀完個名再讀多次「RC」
- *    係純噪音；姓名本身係真文字，唔會因為收埋頭像而失去資訊。 */
+ *  ⚠ 頭像（縮寫或相片）一律 aria-hidden：佢係裝飾性內容，讀屏讀完個名
+ *    再讀多一次「RC」係純噪音；姓名本身係真文字，唔會因為收埋頭像而失去資訊。
+ *    ⚠ 相片嗰邊再加 alt=""（雙重保險）：就算日後有人移除 aria-hidden，
+ *      空 alt 亦唔會令讀屏讀出檔名。
+ *  ⚠ 相片頭像：member.avatar 有值就出 <img>，否則出姓名縮寫；而且係
+ *    「蓋喺縮寫上面」而唔係取代縮寫 —— 理由見下面 photo 一段嘅註解。
+ *  ⚠ 姓名列（.dev-member__name-row）＝ 姓名 ＋ 已驗證標章，兩者同一水平線、
+ *    一齊置中（版面細節見 profile.css 同名區塊）。
+ *    ⚠ 標章一律由 member.verified 驅動，資料源頭係 profile-content.js ——
+ *      呢度只負責渲染，唔可以喺 profile.js 硬編「邊位成員有章」，
+ *      否則日後加減成員或者補驗證就要改兩個檔，兩份資料一定會走音。 */
 function profileDevMemberHtml(member) {
     const socials = (member && member.socials ? member.socials : [])
         // ⚠ 過濾而唔係照 render：一個 javascript: 或空網址嘅項目，
@@ -2900,11 +2926,49 @@ function profileDevMemberHtml(member) {
         ? '<span class="dev-member__class">' + profileEscape(member.tag) + '</span>'
         : '';
 
+    // ⚠ 已驗證標章（member.verified === true 先出）：緊貼姓名右側、同一水平線。
+    //   ⚠ 用「=== true」嚴格比對而唔用 truthy 判斷：profile-content.js 若誤填
+    //     字串 'false'（truthy），會靜靜地幫一位未驗證嘅成員出章 ——
+    //     呢種錯誤無聲無息，寧願填錯時「唔出章」。方向錯咗（漏出章）
+    //     比錯咗（亂出章）安全得多，因為認證章係對外嘅事實聲明。
+    //   ⚠ 標章同姓名包成一條 row（.dev-member__name-row）而唔係把標章塞入
+    //     .dev-member__name 裏面：後者係 ellipsis 嘅文字容器，加入子元素後
+    //     「超長姓名被截斷」時會連個章一齊被切走，變成一個殘缺嘅標記。
+    //   ⚠ role="img" ＋ aria-label：標章係裝飾性圖形，讀屏用戶靠呢兩樣得知
+    //     「已驗證」；圖示本身（hydrateIcons 產生嘅 SVG）已自帶
+    //     aria-hidden="true"，所以唔會重複朗讀。
+    //   ⚠ data-icon 用硬編字串（icons.js 嘅註冊名），同 profileNavRowHtml
+    //     嘅規矩一樣，唔可以改成由使用者輸入提供。
+    const badge = (member && member.verified === true)
+        ? '<span class="dev-member__badge" role="img" aria-label="已驗證"' +
+          ' data-icon="verifiedBadge" data-icon-size="17"></span>'
+        : '';
+
+    // ⚠ 頭像相片（member.avatar）：用 <img> 蓋喺縮寫「上面」，而唔係取代縮寫 ——
+    //   資產缺失或改名時，底下嘅縮寫仲喺度，卡面唔會變成一個空白圈。
+    //   ⚠ width／height 屬性必寫：唔寫嘅話相片載入完成嗰刻，頭像會由 0 高
+    //     跳成 64px，整張卡向下彈一下（CLS）。
+    //   ⚠ alt="" 而唔係填姓名：姓名已經係下面嘅真文字，讀屏讀多一次係噪音；
+    //     容器本身亦有 aria-hidden（雙重保險，見上面函式註解）。
+    //   ⚠ src 經 profileEscape()：呢個係屬性值，同 href／aria-label 一樣，
+    //     冇轉義就等於自己開一個屬性注入入口。
+    //   ⚠ 路徑一律嚟自 profile-content.js 嘅本機資產，而且必須同步加入
+    //     service-worker.js 嘅 PRECACHE 清單（唔加就離線冇相睇）。
+    const photo = (member && member.avatar)
+        ? '<img class="dev-member__avatar-img" src="' + profileEscape(member.avatar) + '"' +
+          ' alt="" width="64" height="64" decoding="async">'
+        : '';
+
     return '<div class="dev-member">' +
-        '<span class="dev-member__avatar" aria-hidden="true">' +
+        '<span class="dev-member__avatar' + (photo ? ' dev-member__avatar--photo' : '') + '"' +
+        ' aria-hidden="true">' +
         profileEscape(profileDevInitials(member && member.name)) +
+        photo +
         '</span>' +
+        '<span class="dev-member__name-row">' +
         '<span class="dev-member__name">' + profileEscape(member && member.name) + '</span>' +
+        badge +
+        '</span>' +
         cls +
         (socials.length ? '<span class="dev-social">' + socials.join('') + '</span>' : '') +
         '</div>';
@@ -2958,6 +3022,27 @@ function initProfile() {
             if (event.target === overlay) closeProfilePanel();
         });
     }
+
+    // ⚠ 開發者頭像相片載入失敗（資產缺失／改名）時，移除呢個 <img>，
+    //   令底層嘅姓名縮寫乾淨咁露返出嚟 —— 冇呢一步就會見到
+    //   「爛圖示疊住縮寫」，同 profileDevMemberHtml 註解所講嘅
+    //   「唔會變成空白圈」只做咗一半。
+    //   · 用 window 嘅捕捉階段，而唔係逐個 <img> 綁 onerror：成員卡
+    //     每次打開面板都會 innerHTML 整批重新渲染，逐個綁會令監聽器
+    //     隨開啟次數不斷累積。
+    //   · resource error（<img> 載入失敗）唔會冒泡，所以 capture 必須 true。
+    //   · 亦唔用 inline onerror=""：_headers 嘅 CSP 目標係收窄 script-src
+    //     （見該檔註解），inline 事件處理器會成為日後移除 'unsafe-inline'
+    //     嘅阻礙。
+    //   · 只認 .dev-member__avatar-img 呢個 class，唔會誤傷其他 <img>
+    //     （例如用戶自己嘅 .acc-item__avatar、.header-user__avatar）。
+    window.addEventListener('error', event => {
+        const target = event.target;
+        if (target && target.tagName === 'IMG' &&
+            target.classList && target.classList.contains('dev-member__avatar-img')) {
+            target.remove();
+        }
+    }, true);
 
     // ⚠ 原本呢度要為模態抽屜綁「點背景關閉」同「右上 ❌ 關閉」兩個監聽。
     //   抽屜已刪除，子頁面一律用左上返回鍵彈出，所以唔會再有抽屜節點可以綁。

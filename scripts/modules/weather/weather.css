@@ -1,0 +1,336 @@
+/* ============================================================
+   澳門實時天氣與特別天氣報告卡（個人中心首頁最頂一張全寬卡）
+   版本 1.1.0
+   ------------------------------------------------------------
+   結構（見 index.html #wx-card / weather.js weatherRenderCard()）：
+     .wx-card[data-wx-state]        卡片本體（同時係 .ios-card）
+       .wx-card__main               左半：圖示 + 文字
+         .wx-card__icon             56px 玻璃底座（內含 weatherGlyph() 嘅 SVG）
+         .wx-card__body
+           .wx-card__title          22px 大溫度（font-weight 700）
+           .wx-card__sub            12px「概況 · 地點 時間」
+       .wx-card__pill               右半：iOS 圓角膠囊（14px 圓角）
+         .wx-card__pill-signal      風球／暴雨態：▲ + 編號 + 方向（預設 hidden）
+         .wx-card__pill-value       正常態：氣溫
+         .wx-card__pill-meta        正常態：濕度
+
+   ⚠ 卡片內「冇任何 Emoji」：天氣圖示係 SVG（weather-icons.js 嘅
+     weatherGlyph()），▲ 係下面 .wx-card__pill-tri 用 border 畫嘅三角形。
+     用文字「▲」都唔得 —— 部分字型會當佢係 Emoji 變體著色。
+
+   ⚠ 顏色一律唔喺本檔硬寫 RGB：全部經 --wx-* 變數俾 :root 兩個主題各自定義，
+     同 overtime.css 嘅 --ot-alert-* 一樣做法。原因係需求規格寫嘅
+     rgba(255, 59, 48, …)／#8E8E93 係「淺色主題下嘅 iOS 系統色」，
+     疊喺本 App 預設嘅近黑底上面會灰到睇唔出，需要另一組值。
+     ⚠ 淺色主題一組照住規格原文嘅數字，唔准改。
+   ============================================================ */
+
+:root {
+    /* 陰影／玻璃底座（跟隨主題嘅中性色） */
+    --wx-icon-bg: rgba(255, 255, 255, 0.14);
+    --wx-icon-border: rgba(255, 255, 255, 0.18);
+    --wx-icon-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+
+    /* 右側膠囊：規格寫 rgba(255,255,255,0.6)（淺色主題值） */
+    --wx-pill-bg: rgba(255, 255, 255, 0.12);
+    --wx-pill-border: rgba(255, 255, 255, 0.18);
+    --wx-pill-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+
+    /* 副標題灰：規格寫 #8E8E93（淺色主題值） */
+    --wx-sub-color: #9a9aa2;
+
+    /* warn 態：橙黃警示（1／3 號風球、暴雨警告…） */
+    --wx-warn-fill: rgba(255, 149, 0, 0.14);
+    --wx-warn-border: rgba(255, 149, 0, 0.34);
+    --wx-warn-text: #ffb340;
+
+    /* danger 態：8／9／10 號風球 —— 需求指定嘅 iOS 警告紅 */
+    --wx-danger-fill: rgba(255, 59, 48, 0.12);
+    --wx-danger-border: rgba(255, 59, 48, 0.3);
+    --wx-danger-text: #ff7b73;
+    --wx-danger-glow: rgba(255, 59, 48, 0.22);
+}
+
+:root[data-theme="light"] {
+    --wx-icon-bg: rgba(255, 255, 255, 0.92);
+    --wx-icon-border: rgba(0, 0, 0, 0.05);
+    --wx-icon-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+
+    /* 需求原值 */
+    --wx-pill-bg: rgba(255, 255, 255, 0.6);
+    --wx-pill-border: rgba(0, 0, 0, 0.04);
+    --wx-pill-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+    /* 需求原值 */
+    --wx-sub-color: #8e8e93;
+
+    --wx-warn-fill: rgba(255, 149, 0, 0.12);
+    --wx-warn-border: rgba(255, 149, 0, 0.3);
+    --wx-warn-text: #c26a00;
+
+    /* 需求原值：淺色主題下就係規格寫嘅嗰組數字 */
+    --wx-danger-fill: rgba(255, 59, 48, 0.12);
+    --wx-danger-border: rgba(255, 59, 48, 0.3);
+    --wx-danger-text: #ff3b30;
+    --wx-danger-glow: rgba(255, 59, 48, 0.16);
+}
+
+/* ---------- 卡片本體 ---------- */
+/* ⚠ .ios-card 本身有 padding: 0 14px，呢度要自己宣告返上下內距，
+   否則文字會貼住卡片上下邊。左右只留 16px＝卡邊起計 16px，同 .ios-row 一致。 */
+.wx-card {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+
+/* 柔和光暈：跟隨卡片狀態換色（純裝飾，不攔點擊）
+   ⚠ inset: 0 要配 .ios-card 嘅 overflow: hidden，否則光暈會溢出圓角 */
+.wx-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(120% 150% at 6% 0%, rgba(0, 212, 255, 0.2), transparent 62%),
+        radial-gradient(90% 130% at 100% 100%, rgba(106, 92, 255, 0.16), transparent 64%);
+    pointer-events: none;
+    transition: background 0.25s ease;
+}
+
+.wx-card__main {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* ---------- 左側：56px 天氣圖示底座（規格指定尺寸） ---------- */
+.wx-card__icon {
+    flex: 0 0 56px;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* ⚠ line-height: 0：SVG 係 inline 元素，留 baseline 空隙會令圖示偏上 */
+    line-height: 0;
+    border-radius: 17px;
+    background-color: var(--wx-icon-bg);
+    border: 1px solid var(--wx-icon-border);
+    box-shadow: var(--wx-icon-shadow);
+    transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+
+/* 圖示本體（weather-icons.js 產生嘅 SVG）
+   ⚠ 呢度「唔可以」寫 width / height —— CSS 會蓋過 SVG 自己嘅 width／height
+     屬性，一寫 auto 就會變成 SVG 嘅預設內在尺寸（300×150），圖示會撐爆
+     成張卡。尺寸一律由 weatherGlyph(key, size) 嘅屬性話事。
+   呢度只負責 display: block（inline SVG 會留 baseline 空隙令圖示偏上）。 */
+.wx-glyph {
+    display: block;
+}
+
+.wx-card__body {
+    position: relative;
+    min-width: 0;
+}
+
+/* 第一行：當前溫度大字（規格：22px / 700） */
+.wx-card__title {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.4px;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+}
+
+/* 第二行：概況 · 地點 時間（規格：12px / #8E8E93） */
+.wx-card__sub {
+    margin-top: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--wx-sub-color);
+    /* 長站名／提示語一律單行省略，唔可以撐爆卡片 */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- 右側：iOS 圓角膠囊（規格：0.6 白底 / 8px 12px / 14px 圓角） ---------- */
+.wx-card__pill {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    min-width: 66px;
+    padding: 8px 12px;
+    border-radius: 14px;
+    background-color: var(--wx-pill-bg);
+    border: 1px solid var(--wx-pill-border);
+    box-shadow: var(--wx-pill-shadow);
+    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+.wx-card__pill-value {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.6px;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+}
+
+.wx-card__pill-meta {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--wx-sub-color);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* ---------- 右側膠囊：風球／暴雨態（▲ + 編號 + 方向） ---------- */
+.wx-card__pill-signal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 30px;
+}
+
+/* ⚠ 必寫：UA 樣式表嘅 [hidden] { display: none } 敵不過上面寫嘅 display: flex，
+   唔補呢條就會任何時候都掛住一組空嘅警告標示（膠囊永遠變闊）。 */
+.wx-card__pill-signal[hidden] { display: none; }
+
+/* 警示三角：用 border 畫，唔用文字「▲」——
+   部分字型會將 ▲ 當 Emoji 變體處理，喺某些平台會變成彩色方塊。 */
+.wx-card__pill-tri {
+    width: 0;
+    height: 0;
+    border-left: 5.5px solid transparent;
+    border-right: 5.5px solid transparent;
+    border-bottom: 9.5px solid currentColor;
+}
+
+.wx-card__pill-mark {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.5px;
+    color: inherit;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 方向／級別：英文喺上、中文喺下（設計圖：NW 疊住 西北） */
+.wx-card__pill-dir {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+}
+
+.wx-card__pill-dir-en {
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.2px;
+}
+
+.wx-card__pill-dir-zh {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* 空字串唔佔位（例如暴雨只有級別、冇英文方向） */
+.wx-card__pill-dir-en:empty,
+.wx-card__pill-dir-zh:empty { display: none; }
+
+/* 警告態：警告標示出現時，原本嘅氣溫／濕度兩行要讓位 */
+.wx-card__pill[data-wx-pill="signal"] .wx-card__pill-value,
+.wx-card__pill[data-wx-pill="signal"] .wx-card__pill-meta {
+    display: none;
+}
+
+/* ============================================================
+   狀態：warn —— 橙黃警示（1／3 號風球、暴雨警告、雷暴…）
+   只染右邊膠囊，卡片本體保持中性 —— 版面唔會突然變樣，
+   但「特別天氣報告」嗰格一眼睇得出有事。
+   ============================================================ */
+.wx-card[data-wx-state="warn"] .wx-card__pill {
+    background-color: var(--wx-warn-fill);
+    border-color: var(--wx-warn-border);
+    box-shadow: none;
+    color: var(--wx-warn-text);
+}
+
+/* ============================================================
+   狀態：danger —— 8／9／10 號風球，整張卡轉 iOS 警告紅
+   （底色／邊框用需求指定嘅 rgba 值，見上面 :root 變數定義）
+   ============================================================ */
+.wx-card[data-wx-state="danger"] {
+    background-color: var(--wx-danger-fill);
+    border-color: var(--wx-danger-border);
+    box-shadow: 0 0 0 1px var(--wx-danger-glow), 0 6px 20px -10px var(--wx-danger-glow);
+}
+
+.wx-card[data-wx-state="danger"]::before {
+    background: radial-gradient(120% 150% at 6% 0%, rgba(255, 59, 48, 0.28), transparent 64%);
+}
+
+.wx-card[data-wx-state="danger"] .wx-card__icon {
+    background-color: var(--wx-danger-fill);
+    border-color: var(--wx-danger-border);
+    box-shadow: none;
+}
+
+.wx-card[data-wx-state="danger"] .wx-card__sub {
+    color: var(--wx-danger-text);
+    opacity: 0.9;
+}
+
+.wx-card[data-wx-state="danger"] .wx-card__pill {
+    background-color: var(--wx-danger-fill);
+    border-color: var(--wx-danger-border);
+    box-shadow: none;
+    color: var(--wx-danger-text);
+}
+
+/* ============================================================
+   狀態：loading / error —— 低調處理，避免開機閃一下之後又變樣
+   ============================================================ */
+.wx-card[data-wx-state="loading"] .wx-card__icon,
+.wx-card[data-wx-state="error"] .wx-card__icon {
+    opacity: 0.65;
+}
+
+.wx-card[data-wx-state="error"] .wx-card__pill-value {
+    color: var(--wx-sub-color);
+}
+
+/* 紅卡係「有事發生」嘅訊號：加一下呼吸，喺一堆卡片之中一眼睇得出。
+   ⚠ 一定要尊重 prefers-reduced-motion（同全專案一致）。 */
+@keyframes wxDangerPulse {
+    0%, 100% { box-shadow: 0 0 0 1px var(--wx-danger-glow), 0 6px 20px -10px var(--wx-danger-glow); }
+    50% { box-shadow: 0 0 0 3px var(--wx-danger-glow), 0 6px 24px -8px var(--wx-danger-glow); }
+}
+
+.wx-card[data-wx-state="danger"] {
+    animation: wxDangerPulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wx-card[data-wx-state="danger"] { animation: none; }
+}

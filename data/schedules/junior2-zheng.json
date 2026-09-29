@@ -5,8 +5,8 @@
         { "period": 3, "start": "09:50", "end": "10:30", "subject": "品德公民", "teacher": "鄭穎清" },
         { "period": 4, "start": "10:40", "end": "11:20", "subject": "數學(代數)", "teacher": "鄭穎清" },
         { "period": 5, "start": "11:35", "end": "12:15", "subject": "英文", "teacher": "梁婉瑩" },
-        { "period": 6, "start": "14:15", "end": "14:55", "subject": "體育與健", "teacher": "徐梓駿/蕭沛強" },
-        { "period": 7, "start": "15:05", "end": "15:45", "subject": "體育與健", "teacher": "徐梓駿/蕭沛強" }
+        { "period": 6, "start": "14:15", "end": "14:55", "subject": "體育與健康", "teacher": "徐梓駿/蕭沛強" },
+        { "period": 7, "start": "15:05", "end": "15:45", "subject": "體育與健康", "teacher": "徐梓駿/蕭沛強" }
     ],
     "2": [
         { "period": 1, "start": "08:05", "end": "08:50", "subject": "中文2", "teacher": "鄭炳弟團" },

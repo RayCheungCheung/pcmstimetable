@@ -93,6 +93,28 @@ const PROFILE_DEVELOPER_PANEL_TITLE = '開發者';
        唔符合嘅寧願唔渲染嗰粒掣（唔會出一個撳落冇反應嘅死掣）。
        掣本身係 <a target="_blank" rel="noopener noreferrer">，開新分頁，
        唔會令用戶離開 App（返回鍵的語意得以保留）。
+   ⚠ verified：true／false，代表「身份已驗證」，姓名右側會多一個藍色
+     認證章（icons.js 嘅 verifiedBadge，由 profileDevMemberHtml 渲染）。
+     · 呢個係「事實標記」而唔係裝飾：只有身份真係確認過嘅成員先可以填 true，
+       唔可以為咗「好睇、整齊」而幫所有人加 —— 一個人人都有嘅認證章
+       等於冇認證。同理，唔可以寫成 true 係因為「佢係開發者」：
+       未確認身份嘅開發者就係 false（冇章）。
+     · 唔填＝false＝唔出章，所以欄位係選用嘅；但一填就要係布林 true，
+       唔可以填字串 'true'（'false' 呢個字串係 truthy，會靜靜地出錯章）。
+     · 標章只係裝飾性圖形，姓名本身仍然係真文字，讀屏靠角色標記
+       （role="img" ＋ aria-label="已驗證"）得知，唔會讀到一堆無意義圖形。
+   ⚠ avatar：開發者頭像相片嘅路徑（相對 index.html），選用。
+     · 唔填＝沿用文字縮寫（profileDevInitials，永遠 render 得出）；
+       一填就必須係「本機資產」，而且必須同步加入 service-worker.js 嘅
+       PRECACHE 清單 —— 相片同縮寫唔同，檔案一缺就係一個爛圖，
+       而本 App 係離線優先（詳見 profile.js 同一段註解）。
+     · 用相對路徑而唔用絕對 URL 或 data: URI：絕對 URL 一離線就變爛圖；
+       data: URI 會令呢個 JS 檔暴脹幾百 KB，而且冇辦法獨立快取。
+     · 檔案規格：正方形、192×192 嘅 WebP（顯示尺寸 64px 嘅 3 倍）。
+       圓形遮罩由 CSS（.dev-member__avatar--photo）負責，所以原圖四角
+       會被裁走 —— 重要內容唔可以放喺角落。
+     · 相片係「蓋喺縮寫上面」，唔會令縮寫消失：資產缺失／改名時，
+       卡面仍然睇得到身份縮寫，唔會變成一個空白圈。
    ⚠ 排序：顯示次序＝陣列次序，由左至右。
    ⚠ 呢度冇、亦唔應該有「簡介文字」欄位：成員區塊只有 頭像／姓名／班別／社交掣，
      加一個 desc 就等於把卡片拉返做列表（見 profileDevMemberHtml 嘅註解）。 */
@@ -100,6 +122,10 @@ const PROFILE_DEVELOPER_MEMBERS = [
     {
         name: 'Ray Cheung',
         tag: '初二正',
+        // 身份已驗證（依開發者本人確認）
+        verified: true,
+        // 頭像由開發者本人提供；已加入 service-worker.js 嘅 PRECACHE
+        avatar: 'assets/images/developers/ray-cheung.webp',
         socials: [
             { icon: 'instagram', label: 'Instagram', url: 'https://www.instagram.com/iam_raycheung/' },
             { icon: 'github', label: 'GitHub', url: 'https://github.com/RayCheungCheung' },
@@ -110,6 +136,10 @@ const PROFILE_DEVELOPER_MEMBERS = [
     {
         name: 'Chan Hong Tang',
         tag: '初二正',
+        // 身份已驗證（依開發者本人確認）
+        verified: true,
+        // 頭像由開發者本人提供；已加入 service-worker.js 嘅 PRECACHE
+        avatar: 'assets/images/developers/chan-hong-tang.webp',
         socials: [
             { icon: 'instagram', label: 'Instagram', url: 'https://www.instagram.com/chan_hong_tang/' },
             { icon: 'github', label: 'GitHub', url: 'https://github.com/HONGTANGCHAN' }

@@ -348,7 +348,7 @@
     <!-- 樣式表 -->
     <!-- ?v= 版本號：強制瀏覽器／Service Worker 重新抓新版本，避免快取舊 CSS 令 Tab 圖示消失 -->
     <link rel="stylesheet" href="styles/main.css?v=2.7.1">
-    <link rel="stylesheet" href="styles/icons.css?v=2.5.0">
+    <link rel="stylesheet" href="styles/icons.css?v=2.7.0">
     <!-- styles/splash.css 已內嵌到上面嘅 <style id="splash-critical-css">，
          呢個連結刻意移除：Splash 唔可以依賴任何外部 CSS，否則又會出現首屏黑屏。 -->
     <link rel="stylesheet" href="styles/themes/dark.css">
@@ -369,7 +369,15 @@
     <link rel="stylesheet" href="scripts/modules/holidays/holidays.css?v=2.5.0">
     <link rel="stylesheet" href="scripts/modules/expand/expand.css?v=2.5.0">
     <link rel="stylesheet" href="scripts/modules/calendar/calendar.css?v=2.6.0">
-    <link rel="stylesheet" href="scripts/modules/profile/profile.css?v=3.38.0">
+    <link rel="stylesheet" href="scripts/modules/profile/profile.css?v=3.44.0">
+    <!-- 拖堂計時器 + 老師拖堂排行榜（Beta）。
+         ⚠ 必須排喺 profile.css 之後：本檔嘅 .tag-pill--beta 同 profile.css
+           嘅 .tag-pill 同分同名（單 class 級），靠檔案次序先後決定勝負。 -->
+    <link rel="stylesheet" href="scripts/modules/overtime/overtime.css?v=1.5.0">
+    <!-- 澳門實時天氣與特別天氣報告卡（個人中心首頁最頂）。
+         ⚠ 必須排喺 profile.css 之後：本檔嘅 --wx-* 變數要蓋過卡片底色，
+           而且卡片本身係 .ios-card（cards.css），靠檔案次序定勝負。 -->
+    <link rel="stylesheet" href="scripts/modules/weather/weather.css?v=1.1.0">
     <link rel="stylesheet" href="scripts/modules/auth/auth.css?v=2.7.1">
     <!-- Liquid Glass 光學圖層（必須排在 main.css 之後，才能蓋過舊的玻璃塗裝） -->
     <link rel="stylesheet" href="scripts/modules/liquidglass/liquidglass.css?v=2.5.0">
@@ -518,6 +526,20 @@
                 <div class="utc">UTC+8</div>
             </div>
             <div class="status-container" id="status-container"></div>
+
+            <!-- 拖堂計時器「後備」插槽（內容由 overtime.js 注入）。
+                 ⚠ 拖堂掣本身唔喺呢度：佢係直接嵌喺 NOW 卡內部（時間標籤
+                   正下方嘅 #overtime-btn-container，由 overtime.js 用
+                   createElement + appendChild 掛入 .status-body）。
+                   唔喺 index.html 靜態寫嗰個容器，係因為 NOW 卡連
+                   「09:50 ~ 10:30」都係 main.js 每秒用 innerHTML 砌出嚟嘅
+                   字串 —— HTML 檔裡面冇任何節點係「喺 NOW 卡入面」。
+                 ⚠ 呢個插槽只剩一個用途：計時中但 NOW 卡唔存在（課表載入
+                   失敗卡取代咗成個倒數區）嘅時候接住停止掣。冇咗佢，用戶
+                   就冇任何出口停個碼錶，秒數會一路計落去。
+                 ⚠ 空嘅時候靠 :empty 收起自己（見 overtime.css），
+                   JS 唔需要改 display，亦唔會留低一條無主嘅下邊距。 -->
+            <div class="overtime-slot" id="overtime-slot"></div>
         </div>
 
         <div id="page-holidays" class="page">
@@ -910,24 +932,35 @@
                         <p class="wa-handle" id="profile-hero-handle">—</p>
                     </header>
 
-                    <!-- 下個假期：全寬 Banner
-                         左：節日 Emoji 徽章 + 大字標題（下個假期：中秋節翌日）
-                         右：高亮倒數天數（還有 N 天／今天開始）
-                         內容全部由 renderProfileNextHoliday() 依 holidaysData 填入 -->
-                    <article class="ios-card holiday-banner">
-                        <div class="holiday-banner__main">
-                            <span class="holiday-banner__icon" id="stat-holiday-icon" aria-hidden="true"></span>
-                            <div class="holiday-banner__body">
-                                <div class="holiday-banner__title">
-                                    <span class="holiday-banner__title-label">下個假期：</span><span class="holiday-banner__name" id="stat-holiday">—</span>
-                                </div>
-                                <div class="holiday-banner__range" id="stat-holiday-date"></div>
+                    <!-- 澳門實時天氣與特別天氣報告卡（取代原本嘅「下個假期」倒數 Banner）
+                         左：56px 立體天氣圖示（SVG，禁用 Emoji —— 見 weather-icons.js）
+                         中：22px 大溫度 ＋ 12px「概況 · 地點 時間」
+                         右：iOS 圓角膠囊（rgba(255,255,255,0.6) ／ 14px 圓角）
+                             · 正常 → 氣溫 ＋ 濕度
+                             · 風球／暴雨 → 整粒換成「▲ 編號 ＋ 方向」（紅／橙警示色）
+                                由 .wx-card__pill-signal 顯示、data-wx-pill="signal" 切換
+                         五種狀態（data-wx-state）由 weather.js 依 SMG Open Data 填入：
+                           loading｜ok｜warn｜danger｜error
+                         ⚠ 卡片內冇任何 Emoji：圖示係 SVG、▲ 係 CSS 畫嘅三角形。 -->
+                    <article class="ios-card wx-card" id="wx-card" data-wx-state="loading">
+                        <div class="wx-card__main">
+                            <span class="wx-card__icon" id="wx-icon" aria-hidden="true"></span>
+                            <div class="wx-card__body">
+                                <div class="wx-card__title" id="wx-title">載入中…</div>
+                                <div class="wx-card__sub" id="wx-sub">澳門即時天氣</div>
                             </div>
                         </div>
-                        <div class="holiday-banner__countdown" id="stat-holiday-countdown">
-                            <span class="holiday-banner__lead" id="stat-holiday-lead"></span>
-                            <span class="holiday-banner__num" id="stat-holiday-days">—</span>
-                            <span class="holiday-banner__unit" id="stat-holiday-unit"></span>
+                        <div class="wx-card__pill" id="wx-pill">
+                            <span class="wx-card__pill-signal" id="wx-pill-signal" hidden>
+                                <span class="wx-card__pill-tri" aria-hidden="true"></span>
+                                <span class="wx-card__pill-mark" id="wx-pill-mark">8</span>
+                                <span class="wx-card__pill-dir">
+                                    <span class="wx-card__pill-dir-en" id="wx-pill-dir-en"></span>
+                                    <span class="wx-card__pill-dir-zh" id="wx-pill-dir-zh"></span>
+                                </span>
+                            </span>
+                            <span class="wx-card__pill-value" id="wx-pill-value">—</span>
+                            <span class="wx-card__pill-meta" id="wx-pill-meta">SMG</span>
                         </div>
                     </article>
 
@@ -945,6 +978,25 @@
                                 <span class="ios-row__body">
                                     <span class="ios-row__label">班級與課表設定</span>
                                 </span>
+                                <span class="ios-row__chevron" aria-hidden="true"></span>
+                            </button>
+
+                            <!-- 老師拖堂排行榜（Beta）：標準 Push 入子頁面。
+                                 ⚠ 排出「班級與課表設定」之後：呢一頁嘅數據完全來自課表
+                                   （每筆拖堂紀錄都係該堂課嘅副本），兩行屬同一組語意。
+                                 ⚠ Beta 標籤係一行內嘅 flex 項目（放喺 __body 同 __chevron
+                                   之間），唔可以塞入 .ios-row__label —— 嗰個 label 有
+                                   overflow: hidden，標籤嘅上下 padding 會被剪走一半。
+                                 ⚠ 標籤由 HTML 直接寫 class（唔用 data-icon）：文字標籤唔屬於
+                                   圖示系統；同時全站禁止 Emoji，所以唔可以寫「🅱️ Beta」。
+                                 ⚠ 唔使另外註冊搜尋索引：profileFilterSettings() 直接讀
+                                   .ios-row 嘅 textContent，「拖堂」兩個字已經搜得到。 -->
+                            <button class="ios-row" type="button" onclick="profilePushDetail('overtime')">
+                                <span class="ios-row__icon" data-icon="trophy" data-icon-size="22"></span>
+                                <span class="ios-row__body">
+                                    <span class="ios-row__label">老師拖堂排行榜</span>
+                                </span>
+                                <span class="tag-pill tag-pill--beta">Beta</span>
                                 <span class="ios-row__chevron" aria-hidden="true"></span>
                             </button>
 
@@ -1205,13 +1257,33 @@
         <section class="sub-page" id="profile-subpage" aria-hidden="true">
             <header class="sub-page__nav">
                 <div class="sub-page__nav-row">
+                    <!-- iOS 圓形膠囊返回鍵：36×36 灰底圓形 ＋ 置中深色「‹」
+                         （樣式見 profile.css 嘅 .back-btn 一段）。
+                         ⚠ 唔再顯示「‹ 個人中心」文字標籤：中央已經有頁面標題，
+                           左邊再寫一次上一個畫面名係雙重標示。移除之後，
+                           「返去邊」完全交由 aria-label 交代 —— 由
+                           profileShowView() 寫入「返回 + 上一頁標題」，
+                           讀屏器照樣讀得出目的地（見 profile.js）。
+                         ⚠ aria-label 唔可以喺呢度寫死：本容器服務全部子頁面，
+                           上一頁因入口而異（主頁入 = 個人中心、帳戶入 = 帳戶、
+                           FAQ 入 = 常見問題…），寫死任何一句都會誤導讀屏器。 -->
                     <button class="back-btn" id="subpage-back" type="button"
                             onclick="profileBackView()" aria-label="返回">
-                        <span data-icon="chevronLeft" data-icon-size="19"></span>
+                        <span class="back-btn__icon" data-icon="chevronLeft" data-icon-size="18"></span>
                     </button>
                     <!-- 標題由 profile.js 嘅 profileShowView() 依 PROFILE_DETAIL_PAGES 填入；
-                         絕對居中（left: 50% + translateX(-50%)），唔受左右兩粒掣闊度影響。 -->
-                    <h1 class="sub-page__title" id="subpage-title"></h1>
+                         絕對居中（left: 50% + translateX(-50%)），唔受左右兩粒掣闊度影響。
+                         ⚠ 標題拆成「文字 span ＋ Beta 膠囊 span」兩件：
+                           文字一定要寫入 #subpage-title-text 而唔係 #subpage-title，
+                           否則 .textContent 會連埋個膠囊一齊清走。
+                         ⚠ Beta 膠囊唔可以喺呢度寫死文字：本條 bar 服務全部子頁面，
+                           寫死就每個子頁面標題右側都掛住 Beta。顯示與否由
+                           profile.js 依 PROFILE_DETAIL_PAGES[key].badge 即時決定，
+                           冇宣告 badge 嘅頁面會被 hidden 收埋（[hidden] 有明寫 CSS）。 -->
+                    <h1 class="sub-page__title" id="subpage-title">
+                        <span class="sub-page__title-text" id="subpage-title-text"></span>
+                        <span class="beta-badge" id="subpage-title-badge" hidden>Beta</span>
+                    </h1>
                     <button class="sub-page__more" id="subpage-more" type="button"
                             onclick="profileMoreAction()" aria-label="更多選項" style="display: none;">
                         <span data-icon="moreHorizontal" data-icon-size="19"></span>
@@ -1391,7 +1463,7 @@
 
 <script src="scripts/utils/storage.js?v=2.5.0"></script>
 <!-- 統一 SVG 圖示系統：全站嚴禁 Emoji，所有圖示由此產生 -->
-<script src="scripts/utils/icons.js?v=2.16.0"></script>
+<script src="scripts/utils/icons.js?v=2.18.0"></script>
 <!-- DataManager：App 唯一資料存取層（localStorage 優先 → 靜態 JSON 後備） -->
 <script src="scripts/utils/db.js?v=3.2.0"></script>
 <script src="scripts/config/auth-config.js?v=3.1.0"></script>
@@ -1404,6 +1476,17 @@
 <script src="scripts/modules/animations/animations.js?v=2.5.0"></script>
 <script src="scripts/modules/expand/expand.js?v=2.5.0"></script>
 <script src="scripts/modules/calendar/calendar.js?v=2.9.0"></script>
+<!-- 澳門實時天氣與特別天氣報告（SMG Open Data）。
+     ⚠ 兩個檔一定要成對、次序唔可以調：
+       · weather-icons.js 係純圖示組（weatherGlyph()，內嵌立體 SVG），
+         冇任何依賴，但要排喺 weather.js 之前 —— 後者渲染時會直接呼叫。
+       · weather.js 亦要排喺 main.js 之前：main.js 嘅 initAppShell() 會呼叫
+         weatherInit()（有 typeof 守門，未載入時安全略過）。
+     ⚠ weather.js 唔依賴任何其他模組（連 icons.js / db.js 都唔使）：
+       圖示用自己嗰套 SVG、文字輸出全部經 textContent，冇 innerHTML 拼接
+       用戶資料，抓唔到資料只會靜靜留在快取狀態，唔會 throw。 -->
+<script src="scripts/modules/weather/weather-icons.js?v=1.0.0"></script>
+<script src="scripts/modules/weather/weather.js?v=1.1.0"></script>
 <!-- 雲端同步層：Supabase（Auth + PostgREST）。
      傳輸方式：登入／註冊／續期優先走 <head> 載入的 CDN SDK（取其穩定的 error.code），
      PostgREST 資料端點用原生 fetch；SDK 唔可用時全部自動退回原生 fetch。
@@ -1413,8 +1496,20 @@
 <script src="scripts/modules/auth/auth.js?v=3.1.0"></script>
 <!-- 個人中心靜態內容（FAQ / 四篇法律條文 / 支援電郵）：
      純資料、無邏輯，必須排在 profile.js 之前，讓 profile.js 直接取用 -->
-<script src="scripts/modules/profile/profile-content.js?v=3.5.7"></script>
-<script src="scripts/modules/profile/profile.js?v=3.5.8"></script>
+<script src="scripts/modules/profile/profile-content.js?v=3.5.9"></script>
+<script src="scripts/modules/profile/profile.js?v=3.5.15"></script>
+<!-- 拖堂計時器 + 老師拖堂排行榜（Beta）。
+     ⚠ 載入次序有硬性要求：
+       1. 必須排喺 profile.js 之後 —— 本檔尾段要喺 profile.js 嘅
+          PROFILE_DETAIL_PAGES（頂層 const）補註冊「overtime」呢一頁；
+          太早載入唔係「註冊唔到」咁簡單，而係連 typeof 都會 throw
+          （const 喺 TDZ 期間被 typeof 探測一樣會爆 ReferenceError）。
+          另外會用到 profileToast() 顯示提示。
+       2. 必須排喺 main.js 之前 —— main.js 每秒跑嘅 updateRealtimeStatus()
+          會呼叫 overtimeTick()（有 typeof 守門，未載入只會靜靜唔跑），
+          重建倒數區之後亦會呼叫 overtimeMountNow() 補掛 NOW 卡內嘅掣。
+       3. 本檔自己唔依賴 main.js：計時窗口讀 scheduleData，只喺 tick 之內用到。 -->
+<script src="scripts/modules/overtime/overtime.js?v=1.5.0"></script>
 <!-- 開發者模式（伺服器端驗證）。
      ⚠ 載入次序有硬性要求：
         1. 必須排喺 cloud.js / auth.js / profile.js 之後 ——
@@ -1427,7 +1522,7 @@
 <script src="scripts/modules/devtools/devtools.js?v=1.2.0"></script>
 <!-- Liquid Glass 引擎：以 backdrop-filter + SVG 折射濾鏡實作，離線可用、無 CDN 依賴 -->
 <script src="scripts/modules/liquidglass/liquidglass.js?v=2.5.0"></script>
-<script src="scripts/main.js?v=3.5.3"></script>
+<script src="scripts/main.js?v=3.5.6"></script>
 
 <script>
 if ('serviceWorker' in navigator) {
@@ -1436,7 +1531,7 @@ if ('serviceWorker' in navigator) {
         // 原因：SW 對 CSS / JS 係「快取優先」，而 caches.match() 以「完整 URL（含 ?v=）」為 key。
         // 只要唔升呢個版本號，舊 main.js / schedule.css 就會永遠由快取派出去，
         // 改幾多次代碼用戶都見唔到，睇落就好似「產出完全無效」。
-        navigator.serviceWorker.register('service-worker.js?v=4.17.0')
+        navigator.serviceWorker.register('service-worker.js?v=4.28.0')
             .then((registration) => {
                 console.log('Service Worker 註冊成功:', registration.scope);
                 // 主動檢查有無新版本，避免一直派舊快取

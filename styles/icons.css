@@ -66,16 +66,20 @@
 
 .dev-tab .app-icon { margin-right: 1px; }
 
-/* ---------- 個人中心：下個假期 Banner 的節日徽章 ---------- */
-
-#stat-holiday-icon .app-icon {
-    margin-right: 0;
-    vertical-align: 0;
-}
+/* ---------- 個人中心：下個假期 Banner 的節日徽章 ----------
+   ⚠ 已刪除：該 Banner 已經被「澳門實時天氣與特別天氣報告卡」取代
+     （#stat-holiday-icon 唔再存在）。
+   ⚠ 天氣卡「唔用 Emoji」：需求規格第 1 條明文禁用，要立體天氣圖示。
+     圖示係 weather-icons.js 嘅 weatherGlyph() 產生嘅內嵌 SVG，
+     樣式喺 scripts/modules/weather/weather.css（.wx-card__icon / .wx-glyph），
+     唔喺呢個檔。 */
 
 /* ============================================================
    內容層節日 Emoji（僅限假期列表 / 活動清單；系統 UI 一律禁用）
    由 scripts/utils/icons.js 的 contentIcon() 產生
+   ⚠ 天氣卡曾經係第三個獲准用 Emoji 嘅位置（1.0.0 版），
+     1.1.0 起已全面改用 SVG 立體圖示 —— 呢個檔嘅規則亦已同步拆走，
+     唔會再有 .wx-card__icon 相關嘅 Emoji 補丁。
    ============================================================ */
 
 .emoji-badge {
@@ -108,8 +112,7 @@
     margin-right: 4px;
 }
 
-/* 下個假期 Banner：Emoji 在徽章內置中，不另留右邊距 */
-#stat-holiday-icon .emoji-badge {
-    margin-right: 0;
-    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.18));
-}
+/* ⚠ 原「下個假期 Banner」嘅 #stat-holiday-icon .emoji-badge 規則已刪除：
+   該 Banner 已被「澳門即時天氣警示卡」取代，而新卡嘅 Emoji 唔需要
+   drop-shadow（卡本身已經有光暈 + 玻璃底座）。新卡嘅 .wx-card__icon
+   樣式喺 scripts/modules/weather/weather.css。 */

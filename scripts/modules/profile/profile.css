@@ -469,47 +469,107 @@
 }
 
 /* 真正嘅 44px 內容列：‹ / 標題 / ⋯ 三粒喺呢一層排列；
-   標題用絕對定位居中，所以左右兩粒掣闊度唔同都唔會令標題走位。 */
+   標題用絕對定位居中，所以左右兩粒掣闊度唔同都唔會令標題走位。
+   ⚠ 左右內距由舊版 6px 改為 16px：左右兩粒掣而家係 36px 圓形，
+     圓形左緣要同下面嘅卡片左緣（.sub-page__body 嘅 16px 內距）睇齊，
+     呢個就係 iOS 版面嘅「同一條欄線」。兩邊內距一樣（16px），
+     所以絕對居中嘅標題唔會偏心，唔需要另外補償。 */
 .sub-page__nav-row {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
     height: 44px;
-    padding: 0 6px;
+    padding: 0 16px;
 }
 
-/* 左側「‹」返回：iOS 原生係藍色、44px 觸控熱區、無底框無邊框 */
+/* 左側返回鍵：iOS 圓形膠囊按鈕（36px 灰底圓形 ＋ 置中深色「‹」）。
+   ⚠ 已移除「‹ 個人中心」嘅文字標籤：導覽列中央本身就有頁面標題，
+     左邊再寫一次上一個畫面名係雙重標示；標籤一長（「已連結裝置」）
+     仲要同中央標題爭位。冇可見文字之後，「返去邊」一律交由 aria-label 講
+     （profileShowView() 照舊寫入「返回 + 上一頁標題」，讀屏器讀得到）。
+   ⚠ 尺寸三層分工，唔可以互相取代：
+     · 視覺圓形 = 36px（需求指定）；
+     · 觸控熱區 = 44×44（Apple HIG 下限），由 ::after 嘅 inset: -4px 撐出嚟 ——
+       唔可以用 padding / min-height 撐，兩者都會令圓形本身跟住變大；
+     · 圖示本體 18px，喺圓內光學置中。
+   ⚠ 顏色一律由變數決定，唔寫死 #EFEFF4：#EFEFF4 係淺色主題嘅灰，
+     疊落本 App 預設嘅深色玻璃導覽列會變成一粒刺眼白波。
+     --lg-nav-fill 兩個主題各一份（淺 #EFEFF4、深 rgba(255,255,255,0.12)）。
+   ⚠ 圖示色用 --text-main 而唔用 --ios-blue：圓形灰底上嘅藍箭頭對比度
+     只有約 4.3:1（貼近 AA 邊緣），而參考圖嘅箭頭本身亦係深色；
+     --text-main 淺色 = #1C1C1E、深色 = #fff，兩個主題都夠清晰。 */
 .back-btn {
-    display: flex;
+    position: relative;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
     padding: 0;
     border: none;
-    border-radius: 0;
-    background: none;
-    color: var(--ios-blue);
+    border-radius: 50%;
+    background-color: var(--lg-nav-fill);
+    color: var(--text-main);
     cursor: pointer;
     outline: none;
     -webkit-tap-highlight-color: transparent;
-    transition: opacity 0.16s ease;
+    transition: background-color 0.18s ease, transform 0.18s ease;
 }
 
-.back-btn:active { opacity: 0.45; }
+/* 觸控熱區：圓形維持 36px，實際可撳範圍撐到 44×44。
+   ⚠ 用偽元素而唔用 padding／min-height：偽元素唔參與排版，
+     亦唔會被 .sub-page__nav-row 嘅 44px 高裁走。 */
+.back-btn::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+}
 
-/* 中間標題：絕對居中（同 .profile-topbar__title 同一套做法） */
+/* 按壓反饋：底色加深一級 ＋ 輕微縮細，同 .profile-close:active 同一種按鈕語言。
+   ⚠ 唔用 opacity：圓形本身有灰底，整粒變淡會似 disabled 而唔似「按下」。 */
+.back-btn:active {
+    background-color: var(--lg-nav-fill-active);
+    transform: scale(0.92);
+}
+
+/* 箭頭：flex: 0 0 auto 令佢永遠唔會被壓扁（圓內已無文字，純粹保險） */
+.back-btn__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+/* 中間標題：絕對居中（同 .profile-topbar__title 同一套做法）
+   ⚠ max-width 由舊版 calc(100% - 220px)（要讓開「‹ + 上一頁標題」嗰 109px）
+     改為 calc(100% - 112px)：左右兩粒掣而家係劃一嘅 36px 圓形，
+     112 = 2 ×（16px 列內距 ＋ 36px 圓形 ＋ 4px 緩衝）。
+   ⚠ left: 50% 喺絕對定位下係相對 .sub-page__nav-row 嘅 padding box，
+     而兩邊內距一樣（16px），所以改內距唔會令標題偏離螢幕正中。
+   ⚠ 實際最長標題係「回報問題 / 意見反饋」約 154px，遠細於 375px 窄機嘅
+     上限（375 − 112 = 263px），所以日常標題（已連結裝置／儲存空間及數據／
+     關於我們）一律唔會被省略，真箇超長嘅只會自己出省略號，
+     絕對唔會疊住左右兩粒圓形掣。
+   ⚠ 標題由「純文字」改成 flex 容器（文字 ＋ 可選嘅 Beta 膠囊），
+     所以 overflow / text-overflow / white-space 三件套已經搬去
+     .sub-page__title-text：flex 容器上面寫 text-overflow 係冇效嘅
+     （ellipsis 只對「自己帶 overflow 嘅 block／inline 盒」生效），
+     留低只會令人以為標題會自己收窄。 */
 .sub-page__title {
     position: absolute;
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    /* 扣去左右各一粒 44px 掣再留 8px 餘裕：長標題自己出省略號，唔會疊住粒掣 */
-    max-width: calc(100% - 96px);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: calc(100% - 112px);
+    /* ⚠ align-items: center 一定要跟埋一齊寫：文字（17px）同膠囊（11px）
+       係兩種字級、兩條行高，靠 baseline 對齊會令膠囊明顯偏低幾個 px，
+       睇落似「跌咗落去」而唔係同一行。 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     pointer-events: none;
     font-size: 17px;
     font-weight: 700;
@@ -517,23 +577,90 @@
     color: var(--text-main);
 }
 
-/* 右側「⋯」：同返回掣一樣係 44px 熱區、藍色；
-   冇選項嘅頁面由 profile.js 收埋（display: none），唔佔位。 */
+/* 標題文字本體：真正負責省略號嗰一層。
+   ⚠ min-width: 0 係 flex 收縮嘅前提：flex item 預設 min-width: auto，
+     唔寫嘅話長標題會撐爆容器而唔會出省略號（膠囊就被推出 max-width 之外）。
+   ⚠ 三件套只可以喺呢度寫一次，兩處都寫就變成「兩層各自截一次」。 */
+.sub-page__title-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 標題右側嘅 Beta 膠囊（文字由頁面自己宣告：PROFILE_DETAIL_PAGES[key].badge）。
+   ⚠ 字色用 var(--primary-color) 而唔係需求寫死嘅 #007AFF：
+     本 App 預設深色主題，#007AFF 疊喺近黑底對比只有約 3.7:1（低於 AA 4.5:1），
+     粒膠囊會睇得好辛苦；--primary-color 淺色主題就係需求嗰個 #007AFF，
+     深色主題係 #0A84FF（同一色相、提亮版），兩個主題都達標。
+   ⚠ 底色同理分兩個主題：淺色主題用需求原值 rgba(0, 122, 255, 0.12)；
+     深色主題略為加濃（0.18），否則淡藍底疊喺黑上面根本睇唔出有個膠囊。 */
+.beta-badge {
+    /* ⚠ display 一定要明寫（唔靠 inline 預設）：膠囊係 inline-flex 盒，
+       padding 才會真正撐開高度、亦唔會被行高嘅上下留白擠歪。 */
+    display: inline-flex;
+    align-items: center;
+    /* 標題被截時唔可以壓扁膠囊（有 flex-shrink 預設 1 就會縮到變形） */
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgba(10, 132, 255, 0.18);
+    color: var(--primary-color);
+}
+
+:root[data-theme="light"] .beta-badge {
+    background: rgba(0, 122, 255, 0.12);
+}
+
+/* ⚠ [hidden] 必須明寫：UA 樣式表嘅 [hidden] { display: none } 係作者樣式嘅
+   手下敗將，而上面已經寫咗 display: inline-flex —— 唔補呢一條，hidden
+   就會完全失效，變成每個子頁面嘅標題右側都掛住一個 Beta。 */
+.beta-badge[hidden] { display: none; }
+
+/* 右側「⋯」：同返回掣完全鏡像對稱 —— 一樣 36px 圓形、一樣灰底、
+   一樣 44×44 觸控熱區、一樣嘅按壓反饋。兩粒掣係同一個元件嘅左右版本，
+   改任何一邊都必須同時改另一邊（見 .back-btn 一段嘅尺寸說明）。
+   ⚠ display 一定要留 flex：profile.js 收埋／顯示係寫
+     el.style.display = 'flex' / 'none'，改成 inline-flex 就會出現
+     「收埋之後撳唔返出嚟」。
+   ⚠ margin-left: auto 保留做保險：標題係絕對定位（唔佔 flex 位），
+     理論上 space-between 已經分開兩粒掣，但將來中間一插入節點就會走位。
+   ⚠ 冇選項嘅頁面由 profile.js 收埋（display: none），唔佔位。 */
 .sub-page__more {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
     margin-left: auto;
     padding: 0;
     border: none;
-    border-radius: 0;
-    background: none;
-    color: var(--ios-blue);
+    border-radius: 50%;
+    background-color: var(--lg-nav-fill);
+    color: var(--text-main);
     cursor: pointer;
     outline: none;
     -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.18s ease, transform 0.18s ease;
+}
+
+/* 觸控熱區：同 .back-btn::after 一樣，圓形維持 36px、可撳範圍 44×44 */
+.sub-page__more::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+}
+
+.sub-page__more:active {
+    background-color: var(--lg-nav-fill-active);
+    transform: scale(0.92);
 }
 
 /* ---------- 卡片：只服務「設定清單」（Toggle / Checkmark / 箭頭跳轉） ----------
@@ -935,6 +1062,12 @@ button.ios-row:active { background-color: var(--lg-row-active); }
     --lg-line: rgba(255, 255, 255, 0.08);
     /* 列表項目按壓回饋 */
     --lg-row-active: rgba(255, 255, 255, 0.08);
+    /* 導覽列圓形按鈕（返回「‹」／更多「⋯」）嘅膠囊底色。
+       淺色用需求指定嘅 #EFEFF4（見下面 [data-theme="light"]）；
+       深色唔可以照用 —— #EFEFF4 疊喺深色玻璃導覽列上會變成一粒刺眼白波，
+       所以改用 rgba(255,255,255,0.12)，同 .profile-close 嘅灰完全一樣。 */
+    --lg-nav-fill: rgba(255, 255, 255, 0.12);
+    --lg-nav-fill-active: rgba(255, 255, 255, 0.22);
 
     /* 次頁面「螢幕」底色：半透明系統材質，而唔係實色 #000 / #F2F2F7。
        ⚠ 呢個係毛玻璃能唔能夠成立嘅關鍵：玻璃卡嘅 backdrop-filter 要有
@@ -955,6 +1088,11 @@ button.ios-row:active { background-color: var(--lg-row-active); }
     --lg-nav-bg: rgba(255, 255, 255, 0.62);
     --lg-line: rgba(0, 0, 0, 0.08);
     --lg-row-active: rgba(0, 0, 0, 0.04);
+    /* 圓形按鈕：需求指定嘅 #EFEFF4（iOS systemGray6）＋ 按下加深一級。
+       呢個值同玻璃導覽列疊出嚟約等於 rgba(0,0,0,0.07) 嘅效果，
+       但需求要嘅係「實色灰階底色」，所以照用原本嘅 #EFEFF4。 */
+    --lg-nav-fill: #EFEFF4;
+    --lg-nav-fill-active: #E2E2E8;
     --sub-page-bg: rgba(242, 242, 247, 0.62);
 }
 
@@ -1480,141 +1618,14 @@ button.ios-row:active { background-color: var(--lg-row-active); }
     .tag-pill--cloud.is-syncing { animation: none; }
 }
 
-/* 5-3 下個假期：卡片式 Banner（左：節日圖示＋大字標題；右：高亮倒數）
-   ⚠ position: relative 同 display: flex 原本由 .bento-tile 提供，
-     Bento Grid 已移除，必須喺呢度自己宣告，否則 ::before 光暈同橫向排列都會失效。 */
-.holiday-banner {
-    position: relative;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 14px 16px;
-}
-
-/* 兩道柔和光暈，令倒數更醒目（純裝飾，不攔點擊） */
-.holiday-banner::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-        radial-gradient(120% 150% at 6% 0%, rgba(106, 92, 255, 0.30), transparent 62%),
-        radial-gradient(90% 130% at 100% 100%, rgba(0, 212, 255, 0.22), transparent 64%);
-    pointer-events: none;
-}
-
-:root[data-theme="light"] .holiday-banner::before {
-    background:
-        radial-gradient(120% 150% at 6% 0%, rgba(106, 92, 255, 0.16), transparent 62%),
-        radial-gradient(90% 130% at 100% 100%, rgba(0, 212, 255, 0.14), transparent 64%);
-}
-
-.holiday-banner__main {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.holiday-banner__icon {
-    flex: 0 0 44px;
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 15px;
-    background-color: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
-}
-
-:root[data-theme="light"] .holiday-banner__icon {
-    background-color: rgba(255, 255, 255, 0.9);
-    border-color: rgba(0, 0, 0, 0.05);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.holiday-banner__body { min-width: 0; }
-
-.holiday-banner__title {
-    font-size: 16px;
-    font-weight: 900;
-    line-height: 1.25;
-    color: var(--text-main);
-    letter-spacing: -0.3px;
-}
-
-.holiday-banner__title-label {
-    font-size: 13px;
-    font-weight: 800;
-    color: var(--text-muted);
-}
-
-.holiday-banner__range {
-    margin-top: 4px;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
-}
-
-/* 右側倒數徽章（還有／N／天 垂直堆疊，窄屏都夠位） */
-.holiday-banner__countdown {
-    position: relative;
-    flex: 0 0 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1px;
-    min-width: 66px;
-    padding: 8px 12px;
-    border-radius: 18px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-:root[data-theme="light"] .holiday-banner__countdown {
-    background-color: rgba(106, 92, 255, 0.08);
-    border-color: rgba(106, 92, 255, 0.16);
-    box-shadow: none;
-}
-
-.holiday-banner__lead,
-.holiday-banner__unit {
-    font-size: 10px;
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: 0.4px;
-    color: var(--text-muted);
-}
-
-.holiday-banner__lead:empty,
-.holiday-banner__unit:empty { display: none; }
-
-.holiday-banner__num {
-    font-size: 30px;
-    font-weight: 900;
-    line-height: 1.05;
-    letter-spacing: -1px;
-    font-variant-numeric: tabular-nums;
-    background: linear-gradient(120deg, #6a5cff 12%, #00d4ff 88%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-}
-
-/* 假期已開始（今天／假期中）：改文字，縮回小字避免撐爆徽章 */
-.holiday-banner__num.is-text {
-    font-size: 15px;
-    letter-spacing: 0;
-}
+/* 5-3 個人中心首頁最頂嘅全寬卡：原本係「下個假期倒數 Banner」。
+   ⚠ 已經整體改為「澳門即時天氣與惡劣天氣警示卡」，相關規則（.holiday-banner
+     及其所有 __main／__icon／__body／__title／__title-label／__range／
+     __countdown／__lead／__unit／__num）一律刪除，樣式搬到
+     scripts/modules/weather/weather.css，唔喺呢度留任何死規則 ——
+     兩份真相係本專案反覆出現過嘅 bug 來源。
+   ⚠ 假期倒數邏輯冇消失：profileUpcomingHoliday() 仍然服務狀態氣泡，
+     節日 Emoji 亦照樣用於假期頁同月曆行程。 */
 
 /* 5-4 專案展示牆：已移除。
    原本 4 個 .wall-tile 快捷入口（週覽總表／課表檢視／月曆行程／假期倒數）
@@ -2210,7 +2221,7 @@ button.ios-row:active { background-color: var(--lg-row-active); }
     border-top: 1px solid var(--lg-line);
 }
 
-/* 頭像：姓名縮寫（無相片資產、無遠端 URL，離線一定有嘢睇）。
+/* 頭像：預設係姓名縮寫；成員填咗 avatar 就改用相片（見下面 --photo）。
    ⚠ 漸變沿用 .auth-hero__badge 嘅同一組色（紫 → 粉 → 青），
      令「品牌色」全站只有一個定義源頭。
    ⚠ 呢個係「身份標記」而唔係設定頁圖示：設定頁圖示必須單色線條
@@ -2239,12 +2250,67 @@ button.ios-row:active { background-color: var(--lg-row-active); }
     -webkit-user-select: none;
 }
 
+/* 相片頭像（成員填咗 avatar）：<img> 用絕對定位蓋喺縮寫上面。
+   ⚠ 用「蓋住」而唔係「取代」縮寫：資產缺失或改名時，底下嘅縮寫仲喺度，
+     卡面唔會變成一個空白圈 —— 呢個係 JS 端刻意保留縮寫嘅原因，
+     所以呢度唔可以加 display: none 之類去抹走嗰層文字。
+   ⚠ 容器加 position: relative ＋ overflow: hidden：
+     · relative 係 absolute 子元素嘅定位基準；
+     · overflow: hidden 令相片可靠地被容器嘅 border-radius: 50% 剪成圓形。
+   ⚠ 相片自己都寫 border-radius: 50%：容器剪一次、相片自己剪一次，
+     兩層係刻意嘅冗餘 —— 容器嘅 border-radius 主要係剪自己嘅漸變背景，
+     相片則要確保貼住圓邊（唔寫就會見到四個直角撐出圓形之外）。
+   ⚠ object-fit: cover 而唔係默認嘅 fill：目前兩張原圖都係正方形，
+     但若日後有人換咗一張長方形相片，fill 會把面孔壓扁；
+     cover 會置中裁切，寧願裁走邊位都唔會變形。
+   ⚠ 相片喺容器「內」，所以容器嘅 box-shadow（紫色光暈）仍然喺相片
+     底下透出，同文字縮寫版視覺一致，唔會出現兩種唔同嘅頭像質感。 */
+.dev-member__avatar--photo {
+    position: relative;
+    overflow: hidden;
+}
+
+.dev-member__avatar--photo .dev-member__avatar-img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* 姓名列：姓名 ＋ 已驗證標章排成同一條水平線（inline-flex / center / gap 6px）。
+   ⚠ 一定要係「姓名同標章共用嘅一條 flex 列」而唔係兩個獨立 inline 元素：
+     純 inline 排法會令標章跟住文字基線落，同 800 字重嘅姓名對唔齊，
+     中間亦只可以靠空格或 margin 撐開（gap 先係可控嘅固定 6px）。
+   ⚠ 呢條列係 .dev-member（flex column ／ align-items: center）嘅 flex item，
+     所以佢會 shrink-to-fit 再由父層置中 —— 「名 ＋ 章」係一齊置中嘅，
+     唔會出現姓名偏左、章孤零零吊喺右邊嘅情況。
+   ⚠ min-width: 0 係 ellipsis 生效嘅關鍵：flex item 預設 min-width: auto
+     會撐到內容闊度，下面 .dev-member__name 嘅 text-overflow 就永遠觸發唔到，
+     超長姓名會直接推爆卡片（卡片係 overflow: hidden）。
+   ⚠ justify-content: center ＋ max-width: 100%：列本身唔可以超出卡內寬度。 */
+.dev-member__name-row {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    max-width: 100%;
+    min-width: 0;
+}
+
 /* 姓名：區塊內最重嘅一行（黑字加粗）。
    ⚠ max-width ＋ 省略號係防禦性嘅：姓名由 profile-content.js 提供，
      日後有人填一個超長名都唔會撐爆卡片寬度（卡片係 overflow: hidden，
-     冇呢兩句就會直接切字，連「被截斷」都睇唔出）。 */
+     冇呢兩句就會直接切字，連「被截斷」都睇唔出）。
+   ⚠ min-width: 0：本身上面 .dev-member__name-row 已經有，呢度再寫一次係
+     因為 .dev-member__name 自己都係 flex item（由 name-row 包住），
+     省略號要生效同樣要覆寫 min-width: auto；漏咗就會變成
+     「截唔斷、直接撐爆卡片」。 */
 .dev-member__name {
     max-width: 100%;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2252,6 +2318,30 @@ button.ios-row:active { background-color: var(--lg-row-active); }
     font-weight: 800;
     letter-spacing: -0.2px;
     color: var(--text-main);
+}
+
+/* 已驗證標章：緊貼姓名右側嘅藍色實心認證章（icons.js 嘅 verifiedBadge）。
+   ⚠ 顏色只喺呢度定義（--ios-blue），圖示路徑本身用 currentColor 做章底 ——
+     硬編第二隻藍會令日後改 --ios-blue 時標章走音。
+   ⚠ flex: 0 0 auto 係必要嘅：圖形唔可以隨姓名壓縮，一壓就會變成橢圓，
+     一眼就睇得出「呢個章係被擠扁」，比冇章更差。
+   ⚠ 尺寸／對齊靠 .dev-member__name-row 嘅 align-items: center，
+     呢度唔加 margin-top／vertical-align 呢類修正值 —— 有咗 flex 對齊，
+     任何垂直微調值都只會喺換字體或改字號時變成偏差。
+   ⚠ 唔加 title／aria-hidden：語意（role="img" ＋ aria-label="已驗證"）
+     由 profileDevMemberHtml() 提供，CSS 呢層再加只會重複朗讀。 */
+.dev-member__badge {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ios-blue);
+}
+
+/* 標章圖示本體：display: block 消除 inline 元素嘅基線空隙，
+   同 .dev-social__link svg 一樣嘅理由 —— 唔寫就會偏上，睇落唔置中。 */
+.dev-member__badge svg {
+    display: block;
 }
 
 /* 班別（例如「初二正」）：姓名對落一行嘅藍字。
@@ -2308,9 +2398,27 @@ button.ios-row:active { background-color: var(--lg-row-active); }
    ⚠ 唔可以加 box-shadow 或者邊框：全站唯一嘅「浮起」層次係 .ios-card 本身，
      喺卡內再疊一層陰影會同卡片外框嘅陰影重疊。
    ⚠ transition 只做 transform／background-color：加埋 width 或者 color
-     就會喺撳嗰下觸發 layout，出現一下卡頓。 */
+     就會喺撳嗰下觸發 layout，出現一下卡頓。
+   ⚠ 可撳性（用無頭瀏覽器實測後補）：曾經有人報「社群掣撳落冇反應」。
+     實測方式係兩個尺寸（手機 390x844、桌面 1180x860）各開一個 iframe，
+     用真實函式渲染呢張卡，再逐條掣做 elementFromPoint 命中測試
+     ＋ 派發真的 pointer／mouse 事件。結果：5 條 <a> 全部命中掣本體、
+     冇任何圖層蓋住、事件亦冇被 preventDefault —— 即係話喺呢個版本
+     點擊係正常嘅。但下面三句仍然要寫，用意係由「目前碰巧成立」
+     變成「寫死嘅保證」：
+       · position: relative ＋ z-index: 1：卡內日後再加裝飾圖層
+         （例如 .detail-glow 那類 absolute 元素），如果佢冇 pointer-events:
+         none，就會蓋住個掣；畀個掣一個明確層級，先唔會靜靜地死咗。
+       · pointer-events: auto：pointer-events 係繼承屬性，若有人喺卡片層
+         寫咗 none（例如整張卡 fade out），子元素會一齊被鎖死；
+         喺掣呢層明確寫返 auto，就唔會連帶中招。
+     三句都唔會改變現有外觀：position 由 static 變 relative 唔動版面、
+     z-index: 1 喺卡內冇對手、pointer-events 本來就係 auto。 */
 .dev-social__link {
     flex: 0 0 auto;
+    position: relative;
+    z-index: 1;
+    pointer-events: auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;

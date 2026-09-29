@@ -1,0 +1,646 @@
+/* =====================================================================
+   overtime.css — 拖堂計時器（倒數頁）＋ 老師拖堂排行榜（Beta，個人中心）
+   =====================================================================
+   ⚠ 顏色一律用主題變數（--card-purple / --card-border / --card-shadow /
+     --text-dark / --text-muted / --divider-color / --ios-blue / --now-red），
+     唔可以硬編白底黑字：本專案「無 data-theme」預設就係深色主題，
+     硬編會出現「白卡白字」。只有獎牌金銀銅、Beta 橙同警示紅
+     （--ot-alert-fill / --ot-alert-text）要本地變數，因為主題檔冇對應系統色，
+     所以逐個主題各補一組 —— 呢三個都係「同一個色值喺深淺主題要唔同處理」
+     嘅情況，唔係想另開一套色系。
+   ⚠ 兩區塊用唔同語言，唔可以混：
+     · 倒數頁：掣本身嵌喺 NOW 卡內部（.overtime-box，無外框）；
+       .overtime-card 而家淨係後備宿主（#overtime-slot，載入失敗時
+       接住停止掣）先用，所以保留課堂卡語言（--card-purple 底 +
+       20px 圓角 + --card-shadow + 全闊動作橫條）。
+     · 排行榜 .ot-* 係個人中心子頁面 → 跟 .ios-card／.ios-list 語言，
+       所以呢度只補排名同頒獎台專屬嘅嘢。
+   ===================================================================== */
+
+/* ---------- 本地色票（獎牌 + Beta） ---------- */
+:root {
+    --ot-beta: #ff9f0a;
+    --ot-beta-soft: rgba(255, 159, 10, 0.16);
+    --ot-gold: #ffd60a;
+    --ot-gold-soft: rgba(255, 214, 10, 0.13);
+    --ot-silver: #c7c7cc;
+    --ot-silver-soft: rgba(199, 199, 204, 0.13);
+    --ot-bronze: #e0913f;
+    --ot-bronze-soft: rgba(224, 145, 63, 0.13);
+    /* 「開始拖堂計時」掣（iOS 警示風：淡紅底 ＋ 紅字）。
+       ⚠ 需求指定 background: rgba(255,59,48,0.12) / color: #FF3B30 ——
+         呢兩個值喺淺色主題原樣照用（見下面 [data-theme="light"] 一組）。
+         但本專案「冇 data-theme」預設就係深色：同一組值疊落深色卡
+         （--card-purple = #1e293b）之上，12% 紅底幾乎睇唔出，而 #ff3b30
+         對 #1e293b 只有約 4.1:1，加埋紅底之後更跌到約 3.5:1（低於 AA）；
+         所以深色改為 14% 底 ＋ 文字提亮至 #ff7b73，實測約 5.1:1。
+       ⚠ 唔可以索性用 --now-red 做字色：--now-red 兩個主題都係 #ff3b30，
+         佢喺 34px 大字（計時跳字）冇問題，但 15px 掣面字就會偏暗。 */
+    --ot-alert-fill: rgba(255, 59, 48, 0.14);
+    --ot-alert-text: #ff7b73;
+    /* 頒獎台三級台座高度：TOP1（中）最高，TOP2（左）、TOP3（右）依次遞減。
+       ⚠ 呢三個數唔可以亂細：台座內容（排名圓牌 22 + 時長 19 + 次數 13
+         ＋ 內距 18 ＋ 兩個 3px 間距）本身就佔約 78px。
+         第 2、3 名如果細過 78px，內容會由 flex 擠爆台座，數字疊出台座外，
+         三級台階亦會變成一高一平 —— 睇落似排版走位多過似頒獎台。
+         所以最矮一級取 96px（內容下限 78px ＋ 18px 餘裕），
+         向上拉開級差：140／112／96（級差 ≥16px，縮到 320px 闊嘅機都睇得出）。
+       ⚠ 台座同時寫死 height（唔係 min-height），三級高度先至係「設計出嚟」
+         而唔係「內容撐出嚟」——否則獎牌色台座嘅高低會跟住數據跳。 */
+    --ot-step-1: 140px;
+    --ot-step-2: 112px;
+    --ot-step-3: 96px;
+}
+
+:root[data-theme="light"] {
+    --ot-beta: #b26a00;
+    --ot-beta-soft: rgba(178, 106, 0, 0.12);
+    --ot-gold: #c98a00;
+    --ot-gold-soft: rgba(201, 138, 0, 0.11);
+    --ot-silver: #8e8e93;
+    --ot-silver-soft: rgba(142, 142, 147, 0.11);
+    --ot-bronze: #b9722f;
+    --ot-bronze-soft: rgba(185, 114, 47, 0.11);
+    /* 「開始拖堂計時」掣：需求原文數值，原樣照用。
+       白卡（--card-purple #FFFFFF）疊 12% 紅底 ≈ #FFF3F2，
+       #FF3B30 對佢約 4.5:1，剛好過 AA。 */
+    --ot-alert-fill: rgba(255, 59, 48, 0.12);
+    --ot-alert-text: #FF3B30;
+}
+
+/* =====================================================================
+   一、倒數頁「拖堂計時器」
+   =====================================================================
+   1-A. 主掛載點：NOW 卡內部嘅 .overtime-box
+        （即 <div id="overtime-btn-container">，由 overtime.js 即場 append
+         入 .status-body 最尾，位置就係時間標籤「09:50 ~ 10:30」正下方）。
+        ⚠ 因為住喺 NOW 卡裡面，呢度唔可以有自己嘅卡片外框（底色／圓角／
+          陰影）：NOW 卡嘅 .status-body 本身已經係 --card-purple 底，
+          再套一層卡片就變成「卡中卡」，一眼睇得出係砌上去嘅。
+   1-B. 後備掛載點：#overtime-slot（#status-container 之後，見 index.html）。
+        只有「計時中但 NOW 卡唔存在」（課表載入失敗）先用得着，
+        所以嗰邊要自帶完整卡片外框（.overtime-card）。 */
+
+/* ---------- 1-A. NOW 卡內部容器 ---------- */
+/* ⚠ 分隔線同上方間距一定要自己畫：NOW 卡嘅 .time-range 係一條全闊紅色
+     橫條（margin-top: 12px），直接黐住粒掣會似「紅色橫條 + 掣」兩件事
+     冇關係；補一條 0.5px hairline（同排行榜 .ot-row 同一語言）先分得開
+     「資訊」同「動作」。
+   ⚠ align-self: stretch 一定唔可以漏：.status-card.now.no-class .status-body
+     係 flex column + align-items: center，唔寫就會縮到內容咁窄，
+     分隔線會變成一截短線浮喺中間。 */
+.overtime-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-self: stretch;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 0.5px solid var(--divider-color);
+}
+
+/* 空容器要連外距同分隔線一齊消失 —— 同下面 .overtime-slot:empty 同一招。
+   ⚠ 呢條規則係「未到落堂時間完全隱藏」嘅最後一塊：
+     overtime.js 嘅 clearHost() 只會清空 innerHTML，容器節點本身仍然掛喺
+     .status-body（佢係 DOM Injection 掛載點，唔可以連節點都拆走，
+     否則落堂鐘一響就冇位畫掣）。冇呢條規則，一個空容器照樣會畫出
+     14px 上距 ＋ 14px 內距 ＋ 一條 hairline —— 即係用戶仍然見到
+     NOW 卡底部多咗一截空位同一條線，「完全隱藏」就名存實亡。
+   ⚠ :empty 只會喺「一個子節點都冇」時命中；clearHost() 寫嘅係 innerHTML = ''，
+     所以必定命中（唔會殘留空白文字節點）。 */
+.overtime-box:empty {
+    display: none;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+
+/* 頂行：Beta 標籤 ＋ 一行說明／課堂資訊。
+   ⚠ .status-body 係 text-align: center，但呢行係左對齊嘅資訊行
+     （同排行榜 .ot-row 一致），所以要明寫 text-align。 */
+.overtime-box__head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    text-align: left;
+}
+
+.overtime-box__note {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* 「今日無課堂」卡係固定深灰底（刻意唔跟主題，見 cards.css 該區塊註解），
+   淺色主題嘅 --divider-color（#C6C6C8）疊上去會變成一條刺眼白線。
+   呢張卡改用白色低透明度 hairline，同該卡「一律硬寫配色」嘅政策一致。 */
+.status-card.now.no-class .status-body .overtime-box {
+    border-top-color: rgba(255, 255, 255, 0.16);
+}
+
+/* ---------- 1-B. 後備插槽 ---------- */
+.overtime-slot {
+    margin-bottom: 12px;
+}
+
+.overtime-slot:empty {
+    display: none;
+    margin-bottom: 0;
+}
+
+.overtime-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: 20px;
+    background-color: var(--card-purple);
+    border: var(--card-border);
+    box-shadow: var(--card-shadow);
+    color: var(--text-dark);
+}
+
+.overtime-card__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.overtime-card__badge {
+    flex: 0 0 auto;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background-color: var(--ot-beta-soft);
+    color: var(--ot-beta);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+
+.overtime-card__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+/* 計時中嘅紅點：iOS「錄音中」同一套語言。
+   只閃紅點、唔閃數字 —— 數字每秒跳已經係動態，再閃會令人以為讀數唔穩。 */
+.overtime-card__dot {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--now-red);
+    animation: overtimePulse 1.4s ease-in-out infinite;
+}
+
+@keyframes overtimePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.22; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .overtime-card__dot { animation: none; }
+}
+
+.overtime-card__meta {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* 累計時間：計時中先出。
+   ⚠ tabular-nums 一定要有，否則每秒跳字會令數字左右跳。 */
+.overtime-card__clock {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 6px;
+}
+
+.overtime-card__num {
+    font-size: 34px;
+    font-weight: 900;
+    line-height: 1.08;
+    letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--now-red);
+}
+
+.overtime-card__unit {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+/* 全闊動作橫條：同課堂卡 .time-range 同一尺寸語言
+   （min-height 46px ＝ Apple HIG 44pt 最小熱區再留 2px）。 */
+.overtime-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+    min-height: 46px;
+    padding: 11px 14px;
+    border: none;
+    border-radius: 14px;
+    background-color: var(--ios-blue, #0a84ff);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.overtime-btn:active {
+    opacity: 0.85;
+    transform: scale(0.985);
+}
+
+/* 停止用紅色：紅色＝落堂，同上面計時中嘅紅點同一套語言 */
+.overtime-btn--stop {
+    background-color: var(--now-red);
+}
+
+/* 「開始拖堂計時」：iOS 警示風（淡紅底 ＋ 紅字）。
+   ⚠ 只喺拖堂窗口內（已過原定下課時間、下一節仲未開始）才會出現，
+     呢一刻老師確實已經拖堂，所以用「紅」交代，唔再用普通藍色確認掣。
+   ⚠ 用「淡底紅字」而唔用 --stop 嘅實心紅：兩粒掣喺同一位置出現
+     （未開始 ↔ 計時中），實心紅會令用戶以為一撳落去就係停止；
+     淡底係「警示」，實心係「破壞性動作」，兩者必須分得開。
+   ⚠ 圖示跟 currentColor（icons.js 嘅 stroke="currentColor"），
+     所以只寫 color 就已經連箭嘴／時鐘一齊變紅，唔需要另外配色。 */
+.overtime-btn--alert {
+    background-color: var(--ot-alert-fill);
+    color: var(--ot-alert-text);
+}
+
+/* 非正班：整條橫條變成唯讀提示，唔係撳得嘅掣。
+   ⚠ cursor 同 :active 都要收走，否則撳落有反饋但冇反應，用戶會以為壞咗。 */
+.overtime-btn--locked {
+    background-color: var(--divider-color);
+    color: var(--text-muted);
+    cursor: default;
+}
+
+.overtime-btn--locked:active {
+    opacity: 1;
+    transform: none;
+}
+
+.overtime-btn__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+/* =====================================================================
+   二、老師拖堂排行榜（個人中心子頁面）
+   ===================================================================== */
+
+/* 補充說明（頁尾「只顯示前 10 名」嗰句）：純文字，唔係提示框。
+   ⚠ 內距／外距完全照抄 profile.css 嘅 .ios-group-title（margin: -6px 4px -10px）：
+     父層 .ios-home 有 gap: 16px，唔用負 margin 就會變成 26px 大空隙，
+     說明文字會飄離佢所屬嘅卡片，睇落似另一個區塊。
+   ⚠ 字重 600 而唔跟 group-title 嘅 700：呢度係一句完整句子（多過一行），
+     700 會令整段說明搶過榜單本身。
+   ⚠ 呢個 class 只服務頁尾嗰句純補充說明；頁頂嘅雲端狀態（載入中／連唔上）
+     係「有嘢要你知」嘅訊息，用 .ot-hint（見下），兩者層級唔同。 */
+.ot-note {
+    margin: -6px 4px -10px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+/* 頁頂雲端狀態框：iOS 輕量資訊框。
+   ⚠ 原本呢個框係「Beta ＋ 資料範圍」提示，該段文字已經移除（需求要求版面
+     由頒獎台直接開始，Beta 標籤亦已搬去導覽列標題右側嘅 .beta-badge）；
+     呢個 class 而家只由 .ot-hint--warn 借用 —— 即「雲端連唔上，以下為
+     本機紀錄」嗰句。所以底色嘅淡藍係為咗 --warn 版本而留嘅預設值，
+     真正顯示出嚟嘅框一定係 .ot-hint--warn 嘅警示色。
+   ⚠ 唔可以因為「預設底色睇唔到」就刪走：冇 --warn 修飾嘅 .ot-hint
+     日後仲會有其他用途（例如提示首次使用），刪走就會變成無底色文字。
+   ⚠ 同 .ot-note 完全分開寫（唔共用底色／字色）：
+     .ot-note 係一行灰字，.ot-hint 係一個有底色有圓角嘅「框」，
+     兩者疊喺一齊就係「灰字塞入藍框」，一定有一邊要 override 另一邊，
+     之後改任何一邊都會踩到另一邊 —— 直接兩個 class 各寫各嘅最穩。
+   ⚠ 字色跟 --primary-color（淺色主題 #007AFF、深色主題 #0A84FF）：
+     需求寫死 #007AFF，但本 App 預設深色主題，#007AFF 疊喺近黑底上面
+     對比度只有約 3.7:1（低於 AA 4.5:1），字會睇得好辛苦；
+     --primary-color 兩個主題各有一份（淺色就係需求嗰個 #007AFF），
+     正好解決呢個問題。底色 8% 藍仍然用需求原值：兩邊主題同一個淡藍調。
+   ⚠ margin: 0 而唔跟 .ot-note 嘅負 margin：呢個係有邊界嘅「框」，
+     同上下卡片保持 .ios-home 嘅 16px 呼吸位睇落先係獨立元件；
+     負 margin 會令框貼死卡片，變成「卡片上面黐住一條藍帶」。 */
+.ot-hint {
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background-color: rgba(0, 122, 255, 0.08);
+    color: var(--primary-color, #007AFF);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+/* 雲端載入中／連唔上嘅狀態框（排行榜頁頂，緊接 .ot-hint 之後）。
+   ⚠ 唔可以借用 .ot-note：佢係頁尾一行灰字，帶負 margin（-6px / -10px）
+     而且冇底色，擺喺 .ot-hint 下面會貼死上框 + 完全唔似「有嘢出錯」。
+   ⚠ 選擇器寫 .ot-hint.ot-hint--warn（兩個 class 級）：同 .ot-hint 同分同名
+     唔可靠，靠檔案次序決定勝負太脆弱。 */
+.ot-hint.ot-hint--warn {
+    background-color: var(--ot-alert-fill);
+    color: var(--ot-alert-text);
+    font-weight: 600;
+}
+
+/* Beta 標籤：仲有一個使用場景 —— 個人中心嘅「老師拖堂排行榜」列（.ios-row）。
+   ⚠ 頁頂嗰粒（原本住喺 .ot-hint 內）同頁尾嗰粒（原本住喺 .ot-note 內）已經
+     跟隨說明欄一併刪除，所以本檔下面兩個容器專屬規則都要刪走；
+     留低就係死代碼，日後有人加返一段文字就會無啦啦彈粒橙 Beta 出嚟。
+   ⚠ 唔可以把底色寫死喺某一個容器下：早前版本只喺 .ios-row 底下上色，
+     結果另一處嘅 Beta 變返 profile.css 嘅灰底 pill —— 一眼睇得出「Beta」
+     係後加上去嘅。
+   ⚠ 選擇器一定要連 `:root[data-theme="light"]` 一齊寫：profile.css 有一條
+     `:root[data-theme="light"] .tag-pill { background-color: … }`，
+     佢係兩個 class 級（0,2,0），單寫一個 .tag-pill--beta（0,1,0）會喺
+     淺色主題輸返轉頭 —— 橙底 Beta 會變成灰底，正好就係嗰粒標籤最需要
+     跳出嚟嘅時候。呢度兩個選擇器寫埋一齊，深淺主題都一定勝出
+     （--ot-beta / --ot-beta-soft 本身已經分主題定義）。 */
+.tag-pill--beta,
+:root[data-theme="light"] .tag-pill--beta {
+    background-color: var(--ot-beta-soft);
+    color: var(--ot-beta);
+    border-color: transparent;
+}
+
+/* ---------- 前三名頒獎台（依指示：唔顯示頭像） ----------
+   ⚠ 左右只留 2px：外層 .ios-card 已經有 padding: 0 14px，總內距 ＝ 16px，
+     同下面 .ot-row 完全對齊（見 profile.css 嘅 .ios-card／.ios-row 慣例）。
+   ⚠ 底部刻意 0：台座要貼實卡片下邊，先做到「企喺台上」。
+     卡片嘅 border-radius + overflow: hidden 會自動剪走台座下方嘅方角，
+     唔需要喺呢度補圓角。 */
+.ot-podium {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    padding: 16px 2px 0;
+}
+
+.ot-podium__col {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    /* ⚠ 8px 就係「姓名／科目／班級」同台座頂邊之間嘅唯一間距，
+       兩邊都唔可以再縮（見下面 flex: 0 0 auto 嘅註解）。 */
+    gap: 8px;
+}
+
+/* 台座上方嘅人物資訊欄（姓名 + 科目 + 班級）。
+   ⚠ flex: 0 0 auto 係「文字永遠唔會俾台座頂邊切斷」嘅硬保證：
+     呢個 column 一旦被壓縮（容器矮過內容、或者內容突然變高），
+     flex 會先縮細資訊欄嘅高度，而 overflow 睇唔到嘅文字就會照樣畫出嚟，
+     直接疊上台座嘅 3px 獎牌色頂邊 —— 睇落就係「頂邊切斷咗老師名」。
+     寫死「唔准縮」，寧可整個頒獎台撐高（外層 .ios-home 本身可以滾動），
+     都唔可以出現文字疊邊。
+   ⚠ flex-wrap 唔用：三行資訊（姓名／科目／班級）已經係刻意分開嘅三行，
+     再 wrap 只會令每欄高度唔一致，台階睇落就唔齊。 */
+.ot-podium__info {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    min-width: 0;
+}
+
+.ot-podium__name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+/* 科目同班級分兩行：頒獎台每欄只有 ~100px，「科目 · 班級」一行必定爆 */
+.ot-podium__sub {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* 台座本體：只有排名圓牌、時間、次數三樣，一律喺台座「內部」。
+   ⚠ height 而唔係 min-height：高度要係三級階梯（140／112／96）嘅設計值，
+     唔可以俾內容撐到一樣高，否則三級台階變成一高一平。
+   ⚠ flex: 0 0 auto ＋ overflow: hidden 兩重保險：
+     前者令台座唔會被壓縮（同 .ot-podium__info 同一道理），
+     後者令台座萬一真係唔夠高，內容亦只會喺台座內部被剪，
+     絕對唔會畫出台座頂邊去切斷上面嘅姓名。
+   ⚠ 內容由頂部開始排（default justify-content: flex-start）：
+     台座高咗，多出嘅空間留喺腳下（似真實頒獎台），
+     置中就反而令排名圓牌浮離獎牌色頂邊。 */
+.ot-podium__step {
+    flex: 0 0 auto;
+    height: var(--ot-step);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 8px 4px 10px;
+    /* 台座：上圓下平，貼實卡片底邊，做出「企喺台上」嘅效果 */
+    border-radius: 14px 14px 0 0;
+    border-top: 3px solid var(--ot-medal);
+    background-color: var(--ot-medal-soft);
+}
+
+.ot-podium__col--1 .ot-podium__step {
+    --ot-medal: var(--ot-gold);
+    --ot-medal-soft: var(--ot-gold-soft);
+    --ot-step: var(--ot-step-1);
+}
+
+.ot-podium__col--2 .ot-podium__step {
+    --ot-medal: var(--ot-silver);
+    --ot-medal-soft: var(--ot-silver-soft);
+    --ot-step: var(--ot-step-2);
+}
+
+.ot-podium__col--3 .ot-podium__step {
+    --ot-medal: var(--ot-bronze);
+    --ot-medal-soft: var(--ot-bronze-soft);
+    --ot-step: var(--ot-step-3);
+}
+
+.ot-podium__rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background-color: var(--ot-medal);
+    /* 獎牌色一律夠淺（金／銀）或中等（銅），所以字要深色；
+       唔可以跟 --text-main —— 淺色主題下會變成深字疊深底。 */
+    color: #1c1c1e;
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.ot-podium__time {
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.ot-podium__time small {
+    margin-left: 1px;
+    font-size: 10.5px;
+    font-weight: 700;
+}
+
+/* 次數：台座第三行（小字）。同上面嘅大字時間係「同一筆數據嘅兩個維度」
+   （拖得幾長 vs 拖咗幾多次），唔係重覆 —— 舊版呢一行係原始秒數，
+   同大字係同一個數字講兩次（15 秒 下面再寫 15 秒），已刪。 */
+.ot-podium__count {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* ---------- 4~10 名列表 ----------
+   ⚠ 呢兩列係 .ios-card > .ios-list 嘅內容，左右內距只可以 2px
+     （卡片本身已經 14px）——同 profile.css 嘅 .ios-row 完全一致，
+     寫 16px 就會變成 30px，一眼睇得出唔係原生列表。 */
+.ot-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 2px;
+}
+
+.ot-row + .ot-row {
+    border-top: 0.5px solid var(--divider-color);
+}
+
+.ot-row__no {
+    flex: 0 0 auto;
+    width: 22px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.ot-row__body {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ot-row__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-main);
+}
+
+.ot-row__meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.ot-row__time {
+    flex: 0 0 auto;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* ---------- 空狀態 ---------- */
+.ot-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 34px 22px;
+    text-align: center;
+}
+
+.ot-empty__icon {
+    display: inline-flex;
+    color: var(--text-muted);
+    opacity: 0.45;
+}
+
+.ot-empty__title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.ot-empty__desc {
+    max-width: 250px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+/* ---------- 個人中心入口列嘅 Beta 標籤 ----------
+   ⚠ 選擇器前面加 .ios-row 唔係為咗好看：profile.css 嘅 .tag-pill 本身有
+     padding／font-size，單靠一個 modifier class 同分同名，只靠檔案先後
+     決定勝負太脆弱，所以明題提高一級 specificity。 */
+.ios-row .tag-pill--beta {
+    flex: 0 0 auto;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+}
